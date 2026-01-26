@@ -43,7 +43,7 @@ export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseMo
               onClick={onLoginClick}
               className="px-4 py-2 rounded-lg border border-blue-500 text-blue-500 hover:bg-blue-50 transition-colors"
             >
-              로그인12
+              로그인
             </button>
           )}
         </div>

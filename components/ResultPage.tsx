@@ -3,7 +3,7 @@ import { CheckCircle, XCircle, Cloud, Save, RefreshCw, BarChart3, AlertCircle, U
 import type { CloudType, UserPrediction } from '../types';
 import type { AuthUser } from '../utils/auth';
 import { apiRequest } from '../utils/auth';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+
 
 interface ResultPageProps {
   imageUrl: string;
@@ -45,15 +45,14 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
   const analyzeCloud = async () => {
     setAnalyzing(true);
     setAnalysisError(null);
-    
+
     try {
       const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-698a0d9f/analyze-cloud`,
+        '/api/analyze',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`
           },
           body: JSON.stringify({
             imageData: imageUrl
@@ -68,12 +67,12 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
       }
 
       const data = await response.json();
-      
+
       if (!data.cloudType || !data.confidence || !data.description) {
         console.error('Invalid AI response:', data);
         throw new Error('AI 응답 형식이 올바르지 않습니다');
       }
-      
+
       setAIPrediction({
         cloudType: data.cloudType,
         confidence: data.confidence,
@@ -90,7 +89,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
   const useDemoMode = () => {
     setDemoMode(true);
     setAnalysisError(null);
-    
+
     // Generate a random demo prediction
     const cloudTypes: CloudType[] = ['권운', '권적운', '권층운', '고적운', '고층운', '층운', '층적운', '적운', '적란운', '난층운'];
     const descriptions: Record<CloudType, string> = {
@@ -105,7 +104,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
       '적란운': '강한 상승기류로 수직 발달한 거대한 구름으로, 천둥 번개를 동반합니다.',
       '난층운': '낮은 고도에서 하늘을 어둡게 덮으며 지속적인 비나 눈을 내리는 구름입니다.'
     };
-    
+
     // Randomly pick a cloud type (50% chance to match user prediction for better UX)
     let demoCloudType: CloudType;
     if (Math.random() > 0.5 && userPrediction.cloudType) {
@@ -113,13 +112,13 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
     } else {
       demoCloudType = cloudTypes[Math.floor(Math.random() * cloudTypes.length)];
     }
-    
+
     setAIPrediction({
       cloudType: demoCloudType,
       confidence: Math.floor(Math.random() * 20) + 75, // 75-95% confidence
       description: descriptions[demoCloudType]
     });
-    
+
     setAnalyzing(false);
   };
 
@@ -153,10 +152,10 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
           isMatch
         })
       });
-      
+
       setSaved(true);
       await loadStats();
-      
+
       setTimeout(() => {
         setShowSaveOptions(false);
       }, 1500);
@@ -178,9 +177,9 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
           <div>
             <div className="rounded-2xl overflow-hidden shadow-lg mb-4">
-              <img 
-                src={imageUrl} 
-                alt="분석된 구름 사진" 
+              <img
+                src={imageUrl}
+                alt="분석된 구름 사진"
                 className="w-full h-96 object-cover"
               />
             </div>
@@ -200,12 +199,12 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
                   <div className="flex-1">
                     <h3 className="mb-2 text-red-700">AI 분석 오류</h3>
                     <p className="text-sm text-gray-600 mb-4">{analysisError}</p>
-                    
+
                     {analysisError.includes('quota') || analysisError.includes('exceeded') ? (
                       <div className="space-y-3">
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                           <p className="text-sm text-yellow-800">
-                            💡 OpenAI API 할당량이 초과되었습니다. 
+                            💡 OpenAI API 할당량이 초과되었습니다.
                             <br />데모 모드로 서비스를 체험해보세요!
                           </p>
                         </div>
@@ -252,7 +251,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <span>신뢰도:</span>
                       <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-green-500"
                           style={{ width: `${aiPrediction.confidence}%` }}
                         ></div>
@@ -277,7 +276,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
                       </>
                     )}
                   </h3>
-                  
+
                   <div className="bg-white rounded-lg p-4 mb-4">
                     <table className="w-full">
                       <thead>
@@ -362,7 +361,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
         {aiPrediction && (
           <div className="bg-white rounded-2xl p-6 shadow-sm">
             <h3 className="mb-4">📌 오늘의 관측 기록</h3>
-            
+
             {!showSaveOptions ? (
               <div className="flex gap-4">
                 <button
@@ -399,13 +398,13 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
               <div className="space-y-4">
                 <p className="text-gray-600">기록을 저장하고 나의 구름 관측 히스토리를 확인하세요!</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button 
+                  <button
                     onClick={onLoginClick}
                     className="py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     로그인하고 저장하기
                   </button>
-                  <button 
+                  <button
                     onClick={onReset}
                     className="py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >

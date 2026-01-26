@@ -16,14 +16,14 @@ export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseMo
     <>
       <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-sm z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <button 
+          <button
             onClick={onLogoClick}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <Cloud className="w-8 h-8 text-blue-500" />
             <span className="text-xl">CloudLab</span>
           </button>
-          
+
           {user ? (
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
@@ -43,12 +43,12 @@ export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseMo
               onClick={onLoginClick}
               className="px-4 py-2 rounded-lg border border-blue-500 text-blue-500 hover:bg-blue-50 transition-colors"
             >
-              로그인
+              로그인12
             </button>
           )}
         </div>
       </header>
-      
+
       {showLoginModal && <LoginModal onClose={onCloseModal} />}
     </>
   );

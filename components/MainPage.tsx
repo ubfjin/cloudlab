@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Cloud, PlayCircle, BookOpen, Dumbbell, Target, HelpCircle, History } from 'lucide-react';
 
 interface MainPageProps {
@@ -10,6 +11,13 @@ interface MainPageProps {
 }
 
 export function MainPage({ onStart, onLearnClick, onPracticeClick, onTutorialClick, onHistoryClick, isLoggedIn }: MainPageProps) {
+  const [activeHelp, setActiveHelp] = useState<string | null>(null);
+
+  const toggleHelp = (e: React.MouseEvent, helpId: string) => {
+    e.stopPropagation();
+    setActiveHelp(prev => prev === helpId ? null : helpId);
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="max-w-2xl w-full text-center">
@@ -23,30 +31,63 @@ export function MainPage({ onStart, onLearnClick, onPracticeClick, onTutorialCli
         <div className="space-y-4 mb-8">
           <button
             onClick={onStart}
-            className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors shadow-lg"
+            className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors shadow-lg relative"
           >
             <PlayCircle className="w-6 h-6" />
-            시작하기
+            구름 종류 분류하기
+            <div
+              onClick={(e) => toggleHelp(e, 'classify')}
+              className="absolute top-2 right-2 p-1 hover:bg-blue-400 rounded-full transition-colors cursor-pointer"
+            >
+              <HelpCircle className="w-4 h-4 text-blue-100" />
+            </div>
+            {activeHelp === 'classify' && (
+              <div className="absolute top-full right-0 mt-2 p-3 bg-white text-gray-800 text-sm rounded-lg shadow-xl border border-gray-200 w-64 z-10 text-left">
+                내 예측과 AI 예측을 비교하며 학습하세요
+              </div>
+            )}
           </button>
 
-          <button 
+          <button
             onClick={onLearnClick}
-            className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 border-2 border-blue-300 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors"
+            className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 border-2 border-blue-300 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors relative"
           >
             <BookOpen className="w-5 h-5" />
             구름 종류 알아보기
+            <div
+              onClick={(e) => toggleHelp(e, 'learn')}
+              className="absolute top-2 right-2 p-1 hover:bg-blue-100 rounded-full transition-colors cursor-pointer"
+            >
+              <HelpCircle className="w-4 h-4 text-blue-400" />
+            </div>
+            {activeHelp === 'learn' && (
+              <div className="absolute top-full right-0 mt-2 p-3 bg-white text-gray-800 text-sm rounded-lg shadow-xl border border-gray-200 w-64 z-10 text-left">
+                10가지 구름 종류의 특징과 고도를 학습하세요
+              </div>
+            )}
           </button>
 
-          <button 
+          <button
             onClick={onPracticeClick}
-            className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 border-2 border-green-300 text-green-600 rounded-xl hover:bg-green-50 transition-colors"
+            className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 border-2 border-green-300 text-green-600 rounded-xl hover:bg-green-50 transition-colors relative"
           >
             <Dumbbell className="w-5 h-5" />
             구름 분류 연습하기
+            <div
+              onClick={(e) => toggleHelp(e, 'practice')}
+              className="absolute top-2 right-2 p-1 hover:bg-green-100 rounded-full transition-colors cursor-pointer"
+            >
+              <HelpCircle className="w-4 h-4 text-green-400" />
+            </div>
+            {activeHelp === 'practice' && (
+              <div className="absolute top-full right-0 mt-2 p-3 bg-white text-gray-800 text-sm rounded-lg shadow-xl border border-gray-200 w-64 z-10 text-left">
+                예제 사진으로 구름 종류 퀴즈를 풀어보세요
+              </div>
+            )}
           </button>
 
           {onTutorialClick && (
-            <button 
+            <button
               onClick={onTutorialClick}
               className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 border-2 border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
             >
@@ -56,7 +97,7 @@ export function MainPage({ onStart, onLearnClick, onPracticeClick, onTutorialCli
           )}
 
           {isLoggedIn && onHistoryClick && (
-            <button 
+            <button
               onClick={onHistoryClick}
               className="w-full max-w-md mx-auto flex items-center justify-center gap-3 px-8 py-4 border-2 border-gray-300 text-gray-600 rounded-xl hover:bg-gray-50 transition-colors"
             >

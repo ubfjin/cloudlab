@@ -123,7 +123,7 @@ export function PracticePage({ onBack }: PracticePageProps) {
     setIsCorrect(correct);
     setIsAnswered(true);
     setTotalAnswered(prev => prev + 1);
-    
+
     if (correct) {
       setScore(prev => prev + 1);
     }
@@ -217,7 +217,7 @@ export function PracticePage({ onBack }: PracticePageProps) {
                   onClick={() => setShowHint(!showHint)}
                   className="absolute top-4 right-4 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full text-sm transition-colors shadow-lg"
                 >
-                  {showHint ? '💡 힌��� 숨기기' : '💡 힌트 보기'}
+                  {showHint ? '💡 힌트 숨기기' : '💡 힌트 보기'}
                 </button>
               )}
               {showHint && !isAnswered && (
@@ -237,13 +237,12 @@ export function PracticePage({ onBack }: PracticePageProps) {
                 <button
                   onClick={() => !isAnswered && setShowDropdown(!showDropdown)}
                   disabled={isAnswered}
-                  className={`w-full flex items-center justify-between px-4 py-3 border-2 rounded-lg transition-colors ${
-                    isAnswered
-                      ? 'bg-gray-50 border-gray-200 cursor-not-allowed'
-                      : selectedAnswer
+                  className={`w-full flex items-center justify-between px-4 py-3 border-2 rounded-lg transition-colors ${isAnswered
+                    ? 'bg-gray-50 border-gray-200 cursor-not-allowed'
+                    : selectedAnswer
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-300 hover:border-blue-400'
-                  }`}
+                    }`}
                 >
                   <span className={selectedAnswer ? 'text-gray-900' : 'text-gray-400'}>
                     {selectedAnswer || '구름 종류를 선택하세요'}
@@ -261,9 +260,8 @@ export function PracticePage({ onBack }: PracticePageProps) {
                           setSelectedAnswer(type);
                           setShowDropdown(false);
                         }}
-                        className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${
-                          selectedAnswer === type ? 'bg-blue-100' : ''
-                        }`}
+                        className={`w-full text-left px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 ${selectedAnswer === type ? 'bg-blue-100' : ''
+                          }`}
                       >
                         {type}
                       </button>
@@ -277,11 +275,10 @@ export function PracticePage({ onBack }: PracticePageProps) {
                 <button
                   onClick={handleSubmit}
                   disabled={!selectedAnswer}
-                  className={`w-full py-4 rounded-lg transition-colors ${
-                    selectedAnswer
-                      ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  }`}
+                  className={`w-full py-4 rounded-lg transition-colors ${selectedAnswer
+                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    }`}
                 >
                   정답 확인
                 </button>
@@ -292,11 +289,10 @@ export function PracticePage({ onBack }: PracticePageProps) {
                 <div className="space-y-4 animate-fadeIn">
                   {/* Correct/Incorrect Message */}
                   <div
-                    className={`p-6 rounded-lg ${
-                      isCorrect
-                        ? 'bg-green-50 border-2 border-green-200'
-                        : 'bg-red-50 border-2 border-red-200'
-                    }`}
+                    className={`p-6 rounded-lg ${isCorrect
+                      ? 'bg-green-50 border-2 border-green-200'
+                      : 'bg-red-50 border-2 border-red-200'
+                      }`}
                   >
                     <div className="flex items-center gap-3 mb-3">
                       {isCorrect ? (
@@ -307,7 +303,7 @@ export function PracticePage({ onBack }: PracticePageProps) {
                       ) : (
                         <>
                           <XCircle className="w-8 h-8 text-red-600" />
-                          <h3 className="text-2xl text-red-900">아쉽습다!</h3>
+                          <h3 className="text-2xl text-red-900">아쉽습니다!</h3>
                         </>
                       )}
                     </div>
@@ -364,13 +360,12 @@ export function PracticePage({ onBack }: PracticePageProps) {
             {shuffledQuestions.map((_, index) => (
               <div
                 key={index}
-                className={`flex-1 h-2 rounded-full transition-all ${
-                  index < currentQuestionIndex
-                    ? 'bg-green-500'
-                    : index === currentQuestionIndex
+                className={`flex-1 h-2 rounded-full transition-all ${index < currentQuestionIndex
+                  ? 'bg-green-500'
+                  : index === currentQuestionIndex
                     ? 'bg-blue-500'
                     : 'bg-gray-200'
-                }`}
+                  }`}
               />
             ))}
           </div>

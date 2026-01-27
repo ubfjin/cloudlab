@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertCircle, Info, X } from 'lucide-react';
+import { AlertCircle, Info, X, MapPin, Loader2 } from 'lucide-react';
 import type { CloudType, UserPrediction } from '../types';
 
 interface PredictionPageProps {
@@ -68,7 +68,7 @@ const cloudInfoMap: Record<CloudType, CloudInfo> = {
     name: '적운',
     englishName: 'Cumulus',
     altitude: '600 - 2,000m',
-    description: '좋��� 날씨에 나타나는 솜사탕 모양의 뭉게구름입니다. 밝은 흰색의 둥근 꼭대기와 평평한 밑면을 가지고 있습니다.'
+    description: '좋은 날씨에 나타나는 솜사탕 모양의 뭉게구름입니다. 밝은 흰색의 둥근 꼭대기와 평평한 밑면을 가지고 있습니다.'
   },
   '적란운': {
     name: '적란운',
@@ -87,16 +87,74 @@ const cloudInfoMap: Record<CloudType, CloudInfo> = {
 export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
   const [cloudType, setCloudType] = useState<CloudType | ''>('');
   const [reason, setReason] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [location, setLocation] = useState('');
+  const [weather, setWeather] = useState('');
+  const [isWeatherLoading, setIsWeatherLoading] = useState(false);
   const [selectedCloudInfo, setSelectedCloudInfo] = useState<CloudType | null>(null);
+
+  const handleGetWeather = () => {
+    if (!navigator.geolocation) {
+      alert('이 브라우저에서는 위치 정보를 지원하지 않습니다.');
+      return;
+    }
+
+    setIsWeatherLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+
+          // Call our API
+          const response = await fetch('/api/weather', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat: latitude, lon: longitude }),
+          });
+
+          if (!response.ok) throw new Error('Weather fetch failed');
+
+          const data = await response.json();
+          // Format: "맑음 (기온: 20°C, 습도: 50%)"
+          // Approximate logic since we only get raw numbers. 
+          // PrecipType: 0=None, 1=Rain, 2=Rain/Snow, 3=Snow, 5=Rain, 6=Rain/Snow, 7=Snow
+          let condition = "맑음";
+          if (data.precipType === '1' || data.precipType === '5') condition = "비";
+          else if (data.precipType === '3' || data.precipType === '7') condition = "눈";
+          else if (data.precipType === '2' || data.precipType === '6') condition = "진눈깨비";
+
+          // Ideally we would get Sky condition (SKY) but Ultra Short Term Live doesn't provide it clearly in one go basically.
+          // Using Precip as proxy for now or just generic.
+
+          const weatherStr = `${condition} (기온: ${data.temperature}°C, 습도: ${data.humidity}%)`;
+          setWeather(weatherStr);
+
+          // Optionally hint location - but we don't have reverse geocoding yet
+          // setLocation("현 위치"); 
+        } catch (error) {
+          console.error(error);
+          alert('날씨 정보를 가져오는데 실패했습니다.');
+        } finally {
+          setIsWeatherLoading(false);
+        }
+      },
+      (error) => {
+        console.error(error);
+        alert('위치 정보를 가져올 수 없습니다.');
+        setIsWeatherLoading(false);
+      }
+    );
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (cloudType) {
-      onSubmit({ cloudType, reason });
+    if (cloudType && reason.trim()) {
+      onSubmit({ cloudType, reason, date, time, location, weather });
     }
   };
 
-  const isValid = cloudType !== '';
+  const isValid = cloudType !== '' && reason.trim().length > 0;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -106,9 +164,9 @@ export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
           <div>
             <div className="rounded-2xl overflow-hidden shadow-lg">
-              <img 
-                src={imageUrl} 
-                alt="업로드된 구름 사진" 
+              <img
+                src={imageUrl}
+                alt="업로드된 구름 사진"
                 className="w-full h-96 object-cover"
               />
             </div>
@@ -116,6 +174,71 @@ export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
 
           <div className="space-y-4">
             <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 shadow-sm">
+              {/* Observation Details */}
+              <div className="bg-gray-50 rounded-xl p-4 mb-6 space-y-4">
+                <h3 className="font-semibold text-gray-700 flex items-center gap-2">
+                  <Info className="w-4 h-4" />
+                  관측 정보 기록
+                </h3>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">관측 일자</label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">관측 시간</label>
+                    <input
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">관측 위치</label>
+                  <input
+                    type="text"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="예: 서울대학교 중앙도서관 부근"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">날씨</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={weather}
+                      onChange={(e) => setWeather(e.target.value)}
+                      placeholder="예: 맑음, 흐림"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleGetWeather}
+                      disabled={isWeatherLoading}
+                      className="px-3 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center gap-1 text-sm font-medium whitespace-nowrap"
+                    >
+                      {isWeatherLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <MapPin className="w-4 h-4" />
+                      )}
+                      현 위치 날씨
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
               <div className="mb-6">
                 <label className="block mb-2">
                   이 구름의 종류는 무엇일까요? <span className="text-red-500">*</span>
@@ -135,7 +258,7 @@ export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
 
               <div className="mb-6">
                 <label className="block mb-2">
-                  구름 이름 판단 이유 (선택)
+                  해당 구름이라고 판단한 이유 <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   value={reason}
@@ -149,11 +272,10 @@ export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
               <button
                 type="submit"
                 disabled={!isValid}
-                className={`w-full py-3 rounded-lg transition-colors ${
-                  isValid 
-                    ? 'bg-blue-500 text-white hover:bg-blue-600' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
+                className={`w-full py-3 rounded-lg transition-colors ${isValid
+                  ? 'bg-blue-500 text-white hover:bg-blue-600'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
               >
                 나의 예측 저장
               </button>
@@ -168,18 +290,17 @@ export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
               <button
                 key={type}
                 onClick={() => setSelectedCloudInfo(selectedCloudInfo === type ? null : type)}
-                className={`p-3 rounded-lg text-left transition-all ${
-                  selectedCloudInfo === type 
-                    ? 'bg-blue-100 border-2 border-blue-500' 
-                    : 'bg-gray-50 border-2 border-transparent hover:bg-blue-50'
-                }`}
+                className={`p-3 rounded-lg text-left transition-all ${selectedCloudInfo === type
+                  ? 'bg-blue-100 border-2 border-blue-500'
+                  : 'bg-gray-50 border-2 border-transparent hover:bg-blue-50'
+                  }`}
               >
                 <div className="text-sm">{type}</div>
                 <div className="text-xs text-gray-500 mt-1">{cloudInfoMap[type].englishName}</div>
               </button>
             ))}
           </div>
-          
+
           {selectedCloudInfo && (
             <div className="mt-6 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border border-blue-200 animate-fadeIn">
               <div className="flex items-start justify-between mb-3">

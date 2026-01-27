@@ -64,6 +64,18 @@ export default function Home() {
     setCurrentStep('main');
   };
 
+  const handleBackFromUpload = () => {
+    setCurrentStep('main');
+  };
+
+  const handleBackFromPrediction = () => {
+    setCurrentStep('upload');
+  };
+
+  const handleBackFromResult = () => {
+    setCurrentStep('prediction');
+  };
+
   const handleImageUpload = (imageUrl: string) => {
     setUploadedImage(imageUrl);
     setCurrentStep('prediction');
@@ -103,7 +115,16 @@ export default function Home() {
 
       {currentStep !== 'main' && currentStep !== 'learning' && currentStep !== 'practice' && currentStep !== 'history' && (
         <div className="pt-20 pb-4">
-          <ProgressBar currentStep={getStepNumber()} totalSteps={4} />
+          <ProgressBar
+            currentStep={getStepNumber()}
+            totalSteps={4}
+            onBack={
+              currentStep === 'upload' ? handleBackFromUpload :
+                currentStep === 'prediction' ? handleBackFromPrediction :
+                  currentStep === 'result' ? handleBackFromResult :
+                    undefined
+            }
+          />
         </div>
       )}
 

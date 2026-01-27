@@ -7,6 +7,10 @@ export type CloudType =
 export interface UserPrediction {
     cloudType: CloudType | '';
     reason: string;
+    date?: string;
+    time?: string;
+    location?: string;
+    weather?: string;
 }
 
 export interface WeatherData {

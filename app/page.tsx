@@ -12,10 +12,11 @@ import { Header } from '@/components/Header';
 import { ProgressBar } from '@/components/ProgressBar';
 import { Tutorial } from '@/components/Tutorial';
 import { useAuth } from '@/hooks/useAuth';
+import { ClassSelectionModal } from '@/components/ClassSelectionModal';
 import { UserPrediction } from '@/types';
 
 export default function Home() {
-  const { user, accessToken, signOut } = useAuth();
+  const { user, accessToken, signOut, loading } = useAuth();
   const [currentStep, setCurrentStep] = useState<'main' | 'learning' | 'practice' | 'history' | 'upload' | 'prediction' | 'result'>('main');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [userPrediction, setUserPrediction] = useState<UserPrediction>({ cloudType: '', reason: '' });
@@ -132,7 +133,7 @@ export default function Home() {
         {currentStep === 'main' && <MainPage onStart={handleStart} onLearnClick={handleLearnClick} onPracticeClick={handlePracticeClick} onTutorialClick={handleShowTutorial} onHistoryClick={handleHistoryClick} isLoggedIn={!!user} />}
         {currentStep === 'learning' && <LearningPage onBack={handleBackToMain} />}
         {currentStep === 'practice' && <PracticePage onBack={handleBackToMain} />}
-        {currentStep === 'history' && <HistoryPage onBack={handleBackToMain} />}
+        {currentStep === 'history' && <HistoryPage onBack={handleBackToMain} accessToken={accessToken} />}
         {currentStep === 'upload' && <UploadPage onImageUpload={handleImageUpload} />}
         {currentStep === 'prediction' && uploadedImage && (
           <PredictionPage
@@ -156,6 +157,12 @@ export default function Home() {
         <Tutorial
           onClose={handleCloseTutorial}
           onSkip={handleSkipTutorial}
+        />
+      )}
+
+      {!loading && user && !user.className && !user.isAdmin && (
+        <ClassSelectionModal
+          onSelect={() => window.location.reload()}
         />
       )}
     </div>

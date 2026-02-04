@@ -89,6 +89,8 @@ export async function POST(req: NextRequest) {
             humidity: items.find((i: any) => i.category === 'REH')?.obsrValue,
             precipitation: items.find((i: any) => i.category === 'RN1')?.obsrValue,
             precipType: items.find((i: any) => i.category === 'PTY')?.obsrValue,
+            windSpeed: items.find((i: any) => i.category === 'WSD')?.obsrValue,
+            windDirection: items.find((i: any) => i.category === 'VEC')?.obsrValue,
         };
 
         return NextResponse.json(result);

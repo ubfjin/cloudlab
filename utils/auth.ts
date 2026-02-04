@@ -1,10 +1,11 @@
 import { createClient } from './supabase/client';
-import { projectId, publicAnonKey } from './supabase/info';
 
 export interface AuthUser {
     id: string;
     email: string;
     name?: string;
+    className?: string; // e.g. '26년도 1학기'
+    isAdmin?: boolean;
 }
 
 export interface AuthState {
@@ -109,12 +110,29 @@ export async function signOut(): Promise<void> {
 }
 
 // API utilities
-export async function apiRequest(endpoint: string, options: RequestInit = {}) {
-    const { accessToken } = await getSession();
+interface ApiRequestOptions extends RequestInit {
+    token?: string;
+}
+
+// API utilities
+export async function apiRequest(endpoint: string, options: ApiRequestOptions = {}) {
+    let accessToken = options.token;
+
+    if (!accessToken) {
+        const session = await getSession();
+        accessToken = session.accessToken || undefined;
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error('Supabase environment variables are missing');
+    }
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken || publicAnonKey}`,
+        'Authorization': `Bearer ${accessToken || supabaseAnonKey}`,
     };
 
     if (options.headers) {
@@ -122,7 +140,7 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     }
 
     const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-698a0d9f${endpoint}`,
+        `/api${endpoint}`,
         {
             ...options,
             headers
@@ -130,8 +148,20 @@ export async function apiRequest(endpoint: string, options: RequestInit = {}) {
     );
 
     if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Request failed');
+        let errorMessage = 'Request failed';
+        try {
+            const textHTML = await response.text();
+            try {
+                const error = JSON.parse(textHTML);
+                errorMessage = error.error || error.message || JSON.stringify(error);
+            } catch {
+                errorMessage = textHTML || `Request failed with status ${response.status}`;
+            }
+        } catch (e) {
+            errorMessage = `Request failed with status ${response.status}`;
+        }
+        console.error(`API Error (${endpoint}):`, errorMessage);
+        throw new Error(errorMessage);
     }
 
     return response.json();

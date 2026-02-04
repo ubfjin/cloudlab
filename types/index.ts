@@ -5,12 +5,13 @@ export type CloudType =
     | '적운' | '적란운' | '난층운';
 
 export interface UserPrediction {
-    cloudType: CloudType | '';
+    cloudType: string;
     reason: string;
     date?: string;
     time?: string;
     location?: string;
     weather?: string;
+    scientificReasoning?: string;
 }
 
 export interface WeatherData {

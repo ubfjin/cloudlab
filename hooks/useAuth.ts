@@ -19,17 +19,40 @@ export function useAuth() {
             console.log('[useAuth] getSession result:', { session: !!session, error });
 
             if (session) {
-                console.log('[useAuth] ✅ Session found:', session.user.email);
-                setUser({
-                    id: session.user.id,
-                    email: session.user.email!,
-                    name: session.user.user_metadata?.name
-                });
+                // Fetch detailed profile
+                fetch('/api/user/profile', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        const profile = data.profile;
+                        const isAdmin = session.user.email?.startsWith('cloudlab2601') || false;
+
+                        setUser({
+                            id: session.user.id,
+                            email: session.user.email!,
+                            name: session.user.user_metadata?.name,
+                            className: profile?.class_name,
+                            isAdmin
+                        });
+                    })
+                    .catch(err => {
+                        console.error('[useAuth] Failed to fetch profile:', err);
+                        // Still set basic user info even if profile fetch fails
+                        setUser({
+                            id: session.user.id,
+                            email: session.user.email!,
+                            name: session.user.user_metadata?.name,
+                            isAdmin: session.user.email?.startsWith('cloudlab2601') || false
+                        });
+                    })
+                    .finally(() => setLoading(false));
+
                 setAccessToken(session.access_token);
             } else {
                 console.log('[useAuth] ❌ No session found');
+                setLoading(false);
             }
-            setLoading(false);
         });
 
         // Listen for auth changes
@@ -37,11 +60,32 @@ export function useAuth() {
             console.log('[useAuth] Auth state changed:', event, session?.user?.email);
 
             if (session) {
-                setUser({
-                    id: session.user.id,
-                    email: session.user.email!,
-                    name: session.user.user_metadata?.name
-                });
+                // Fetch profile on auth change too
+                fetch('/api/user/profile', {
+                    headers: { 'Authorization': `Bearer ${session.access_token}` }
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        const profile = data.profile;
+                        const isAdmin = session.user.email?.startsWith('cloudlab2601') || false;
+
+                        setUser({
+                            id: session.user.id,
+                            email: session.user.email!,
+                            name: session.user.user_metadata?.name,
+                            className: profile?.class_name,
+                            isAdmin
+                        });
+                    })
+                    .catch(() => {
+                        setUser({
+                            id: session.user.id,
+                            email: session.user.email!,
+                            name: session.user.user_metadata?.name,
+                            isAdmin: session.user.email?.startsWith('cloudlab2601') || false
+                        });
+                    });
+
                 setAccessToken(session.access_token);
             } else {
                 setUser(null);

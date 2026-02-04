@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, User, Brain, Camera, Loader2 } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Brain, Camera, Loader2, Sparkles } from 'lucide-react';
 import { apiRequest } from '../utils/auth';
 import type { CloudType } from '../types';
 
@@ -8,10 +8,15 @@ interface Observation {
   userPrediction: {
     cloudType: CloudType;
     reason: string;
+    date?: string;
+    time?: string;
+    location?: string;
+    weather?: string;
   };
   aiPrediction: {
     cloudType: CloudType;
     reason: string;
+    score?: number;
   };
   userId: string;
   createdAt: string;
@@ -19,9 +24,10 @@ interface Observation {
 
 interface HistoryPageProps {
   onBack: () => void;
+  accessToken: string | null;
 }
 
-export function HistoryPage({ onBack }: HistoryPageProps) {
+export function HistoryPage({ onBack, accessToken }: HistoryPageProps) {
   const [observations, setObservations] = useState<Observation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,18 +40,17 @@ export function HistoryPage({ onBack }: HistoryPageProps) {
     try {
       setLoading(true);
       setError(null);
-      
-      const data = await apiRequest('/observations');
-      
+
+      const options = accessToken ? { token: accessToken } : {};
+      const data = await apiRequest('/observations', options);
+
       console.log('📊 Loaded observations:', data.observations);
-      
+
       // Sort by date, newest first
-      const sorted = (data.observations || []).sort((a: Observation, b: Observation) => 
+      const sorted = (data.observations || []).sort((a: Observation, b: Observation) =>
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
-      
-      console.log('📊 First observation structure:', sorted[0]);
-      
+
       setObservations(sorted);
     } catch (err) {
       console.error('Failed to load observations:', err);
@@ -66,6 +71,9 @@ export function HistoryPage({ onBack }: HistoryPageProps) {
     });
   };
 
+  // Calculate total score from loaded observations
+  const totalScore = observations.reduce((sum, obs) => sum + (obs.aiPrediction.score || 0), 0);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-8 px-4">
       <div className="max-w-6xl mx-auto">
@@ -78,7 +86,7 @@ export function HistoryPage({ onBack }: HistoryPageProps) {
             <ArrowLeft className="w-5 h-5" />
             돌아가기
           </button>
-          
+
           <div className="flex items-center gap-3 mb-2">
             <Camera className="w-8 h-8 text-blue-500" />
             <h1 className="text-4xl">이전 기록</h1>
@@ -130,16 +138,34 @@ export function HistoryPage({ onBack }: HistoryPageProps) {
                 <div className="grid md:grid-cols-3 gap-6 p-6">
                   {/* Cloud Image */}
                   <div className="md:col-span-1">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-gray-100">
+                    <div className="aspect-square rounded-lg overflow-hidden bg-gray-100 relative shadow-sm border border-gray-100">
                       <img
                         src={obs.imageUrl}
                         alt="구름 사진"
                         className="w-full h-full object-cover"
                       />
+                      {obs.aiPrediction.score !== undefined && (
+                        <div className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full shadow-sm text-sm font-bold text-indigo-600 border border-indigo-100 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3" />
+                          {obs.aiPrediction.score}점
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
-                      <Calendar className="w-4 h-4" />
-                      {formatDate(obs.createdAt)}
+
+                    {/* Metadata Grid */}
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                      <div>
+                        <span className="font-semibold text-gray-700">📍 위치:</span> <br />{obs.userPrediction.location || '-'}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-700">☀️ 날씨:</span> <br />{obs.userPrediction.weather || '-'}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-700">📅 일자:</span> <br />{obs.userPrediction.date || '-'}
+                      </div>
+                      <div>
+                        <span className="font-semibold text-gray-700">⏰ 시간:</span> <br />{obs.userPrediction.time || '-'}
+                      </div>
                     </div>
                   </div>
 
@@ -151,7 +177,7 @@ export function HistoryPage({ onBack }: HistoryPageProps) {
                       </div>
                       <h3 className="text-lg text-blue-600">내 예측</h3>
                     </div>
-                    
+
                     <div className="bg-blue-50 rounded-lg p-4 mb-3">
                       <p className="text-sm text-gray-500 mb-1">구름 종류</p>
                       <p className="text-xl text-blue-600 mb-3">{obs.userPrediction.cloudType}</p>
@@ -173,7 +199,7 @@ export function HistoryPage({ onBack }: HistoryPageProps) {
                       </div>
                       <h3 className="text-lg text-purple-600">AI 예측</h3>
                     </div>
-                    
+
                     <div className="bg-purple-50 rounded-lg p-4 mb-3">
                       <p className="text-sm text-gray-500 mb-1">구름 종류</p>
                       <p className="text-xl text-purple-600 mb-3">{obs.aiPrediction.cloudType}</p>
@@ -230,10 +256,8 @@ export function HistoryPage({ onBack }: HistoryPageProps) {
                 <p className="text-sm opacity-90">AI와 일치</p>
               </div>
               <div className="text-center">
-                <p className="text-3xl mb-1">
-                  {Math.round((observations.filter(obs => obs.userPrediction.cloudType === obs.aiPrediction.cloudType).length / observations.length) * 100)}%
-                </p>
-                <p className="text-sm opacity-90">정확도</p>
+                <p className="text-3xl mb-1">{totalScore}</p>
+                <p className="text-sm opacity-90">총 획득 점수</p>
               </div>
               <div className="text-center">
                 <p className="text-3xl mb-1">

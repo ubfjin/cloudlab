@@ -26,9 +26,22 @@ export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseMo
 
           {user ? (
             <div className="flex items-center gap-4">
+              {user.isAdmin && (
+                <a
+                  href="/admin"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  관리자 대시보드
+                </a>
+              )}
               <div className="flex items-center gap-2">
                 <User className="w-5 h-5 text-gray-600" />
-                <span className="text-sm text-gray-600">{user.email}</span>
+                <div className="flex flex-col text-right">
+                  <span className="text-sm text-gray-600">{user.email}</span>
+                  {user.className && (
+                    <span className="text-xs text-blue-600 font-medium">{user.className}</span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={onLogout}

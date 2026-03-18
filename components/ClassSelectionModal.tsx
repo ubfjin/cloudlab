@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { X } from 'lucide-react';
 
 interface ClassSelectionModalProps {
     onSelect: (className: string) => void;
+    onClose?: () => void;
 }
 
-export function ClassSelectionModal({ onSelect }: ClassSelectionModalProps) {
+export function ClassSelectionModal({ onSelect, onClose }: ClassSelectionModalProps) {
     const [loading, setLoading] = useState(false);
     const { accessToken } = useAuth();
 
@@ -36,7 +38,15 @@ export function ClassSelectionModal({ onSelect }: ClassSelectionModalProps) {
 
     return (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-xl">
+            <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-xl relative">
+                {onClose && (
+                    <button 
+                        onClick={onClose}
+                        className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                )}
                 <h2 className="text-2xl font-bold mb-2 text-center text-gray-900">환영합니다! 👋</h2>
                 <p className="text-center text-gray-600 mb-8">
                     참여하시는 학급 또는 소속을 선택해주세요.

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Calendar, User, Brain, Camera, Loader2, Sparkles } from 'lucide-react';
 import { apiRequest } from '../utils/auth';
 import type { CloudType } from '../types';
+import { PredictionComparison } from './result/PredictionComparison';
 
 interface Observation {
   imageUrl: string;
@@ -12,12 +13,23 @@ interface Observation {
     time?: string;
     location?: string;
     weather?: string;
+    scientificReasoning?: string;
   };
   aiPrediction: {
     cloudType: CloudType;
     reason: string;
+    confidence?: number;
     score?: number;
+    detailedCritique?: string;
+    scientificFeedback?: string;
+    scoreBreakdown?: {
+      participation: number;
+      typeMatch: number;
+      visual: number;
+      scientific: number;
+    };
   };
+  scientificReasoning?: string; // Sometimes flattened by the API router
   userId: string;
   createdAt: string;
 }
@@ -25,9 +37,11 @@ interface Observation {
 interface HistoryPageProps {
   onBack: () => void;
   accessToken: string | null;
+  targetUserId?: string;
+  targetUserEmail?: string;
 }
 
-export function HistoryPage({ onBack, accessToken }: HistoryPageProps) {
+export function HistoryPage({ onBack, accessToken, targetUserId, targetUserEmail }: HistoryPageProps) {
   const [observations, setObservations] = useState<Observation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +56,13 @@ export function HistoryPage({ onBack, accessToken }: HistoryPageProps) {
       setError(null);
 
       const options = accessToken ? { token: accessToken } : {};
-      const data = await apiRequest('/observations', options);
+      
+      let url = '/observations';
+      if (targetUserId) {
+        url += `?userId=${targetUserId}`;
+      }
+      
+      const data = await apiRequest(url, options);
 
       console.log('📊 Loaded observations:', data.observations);
 
@@ -89,9 +109,13 @@ export function HistoryPage({ onBack, accessToken }: HistoryPageProps) {
 
           <div className="flex items-center gap-3 mb-2">
             <Camera className="w-8 h-8 text-blue-500" />
-            <h1 className="text-4xl">이전 기록</h1>
+            <h1 className="text-4xl text-gray-900 font-bold">
+              {targetUserEmail ? `${targetUserEmail}님의 기록` : '이전 기록'}
+            </h1>
           </div>
-          <p className="text-gray-600">과거에 관측한 구름 기록을 확인하세요</p>
+          <p className="text-gray-600">
+            {targetUserEmail ? '학생의 과거 관찰 통계 및 세부 기록입니다.' : '과거에 관측한 구름 기록을 확인하세요'}
+          </p>
         </div>
 
         {/* Loading State */}
@@ -167,56 +191,71 @@ export function HistoryPage({ onBack, accessToken }: HistoryPageProps) {
                         <span className="font-semibold text-gray-700">⏰ 시간:</span> <br />{obs.userPrediction.time || '-'}
                       </div>
                     </div>
+                    
+                    {/* Small Score Breakdown */}
+                    {obs.aiPrediction.score !== undefined && (
+                      <div className="mt-3 bg-indigo-50/50 rounded-lg p-3 text-xs text-indigo-900 border border-indigo-100">
+                        <div className="font-semibold mb-1 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-indigo-500" />
+                          점수 상세 ({obs.aiPrediction.score}/5점)
+                        </div>
+                        <ul className="space-y-1 text-indigo-700/80">
+                          {obs.aiPrediction.scoreBreakdown ? (
+                            <>
+                              <li>• 참여 기본 점수: +{obs.aiPrediction.scoreBreakdown.participation}</li>
+                              <li>• 구름 종류 {obs.userPrediction.cloudType === obs.aiPrediction.cloudType ? '일치' : '불일치'}: +{obs.aiPrediction.scoreBreakdown.typeMatch}</li>
+                              <li>• 시각적 근거 평가: +{obs.aiPrediction.scoreBreakdown.visual}</li>
+                              <li>• 과학적 추론 평가: +{obs.aiPrediction.scoreBreakdown.scientific}</li>
+                            </>
+                          ) : (
+                            <>
+                              {/* Fallback for older records without saved breakdown */}
+                              <li>• 참여 기본 점수: +1</li>
+                              <li>• 구름 종류 {obs.userPrediction.cloudType === obs.aiPrediction.cloudType ? '일치: +1' : '불일치: +0'}</li>
+                              <li>• 시각/과학적 근거 평가: +{obs.aiPrediction.score - 1 - (obs.userPrediction.cloudType === obs.aiPrediction.cloudType ? 1 : 0)}</li>
+                              <li className="text-gray-400 italic mt-1 text-[10px]">* 과도기 이전 기록입니다.</li>
+                            </>
+                          )}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
-                  {/* User Prediction */}
-                  <div className="md:col-span-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-blue-600" />
+                  {/* Predictions & Comparison */}
+                  <div className="md:col-span-2 flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-blue-50 rounded-2xl p-4 border border-blue-100 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-2">
+                          <User className="w-4 h-4 text-blue-600" />
+                          <p className="text-sm text-gray-600 font-semibold">내 분석 구름</p>
+                        </div>
+                        <p className="text-2xl text-blue-700 font-bold">{obs.userPrediction.cloudType}</p>
                       </div>
-                      <h3 className="text-lg text-blue-600">내 예측</h3>
-                    </div>
-
-                    <div className="bg-blue-50 rounded-lg p-4 mb-3">
-                      <p className="text-sm text-gray-500 mb-1">구름 종류</p>
-                      <p className="text-xl text-blue-600 mb-3">{obs.userPrediction.cloudType}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">판단 이유</p>
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {obs.userPrediction.reason}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* AI Prediction */}
-                  <div className="md:col-span-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Brain className="w-4 h-4 text-purple-600" />
+                      <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100 flex flex-col justify-center">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Brain className="w-4 h-4 text-purple-600" />
+                          <p className="text-sm text-gray-600 font-semibold">AI 판정 결과</p>
+                        </div>
+                        <p className="text-2xl text-purple-700 font-bold">{obs.aiPrediction.cloudType}</p>
                       </div>
-                      <h3 className="text-lg text-purple-600">AI 예측</h3>
                     </div>
 
-                    <div className="bg-purple-50 rounded-lg p-4 mb-3">
-                      <p className="text-sm text-gray-500 mb-1">구름 종류</p>
-                      <p className="text-xl text-purple-600 mb-3">{obs.aiPrediction.cloudType}</p>
-                    </div>
-
-                    <div>
-                      <p className="text-sm text-gray-500 mb-2">판단 이유</p>
-                      {obs.aiPrediction.reason ? (
-                        <p className="text-sm text-gray-700 leading-relaxed">
-                          {obs.aiPrediction.reason}
-                        </p>
-                      ) : (
-                        <p className="text-sm text-gray-400 italic">
-                          이전 버전에서 저장된 기록입니다. 판단 이유가 기록되지 않았습니다.
-                        </p>
-                      )}
-                    </div>
+                    <PredictionComparison
+                      userPrediction={{
+                        cloudType: obs.userPrediction.cloudType,
+                        reason: obs.userPrediction.reason,
+                        scientificReasoning: obs.userPrediction.scientificReasoning || obs.scientificReasoning
+                      }}
+                      aiPrediction={{
+                        cloudType: obs.aiPrediction.cloudType,
+                        description: obs.aiPrediction.reason || '',
+                        confidence: obs.aiPrediction.confidence || 0,
+                        detailedCritique: obs.aiPrediction.detailedCritique || obs.aiPrediction.reason || '시각적 피드백이 저장되지 않았습니다.',
+                        scientificFeedback: obs.aiPrediction.scientificFeedback,
+                        score: obs.aiPrediction.score,
+                        scoreBreakdown: obs.aiPrediction.scoreBreakdown
+                      }}
+                    />
                   </div>
                 </div>
 

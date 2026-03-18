@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertCircle, Info, X, MapPin, Loader2 } from 'lucide-react';
-import type { CloudType, UserPrediction } from '../types';
+import type { CloudType, UserPrediction, ImageMetadata } from '../types';
 
 interface PredictionPageProps {
   imageUrl: string;
+  metadata?: ImageMetadata;
   onSubmit: (prediction: UserPrediction) => void;
 }
 
@@ -84,16 +85,62 @@ const cloudInfoMap: Record<CloudType, CloudInfo> = {
   }
 };
 
-export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
+export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageProps) {
   const [cloudType, setCloudType] = useState('');
   const [reason, setReason] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+
+  // Auto-fill metadata if available
+  useEffect(() => {
+    if (metadata?.date) setDate(metadata.date);
+    if (metadata?.time) setTime(metadata.time);
+  }, [metadata]);
   const [location, setLocation] = useState('');
   const [weather, setWeather] = useState('');
   const [scientificReasoning, setScientificReasoning] = useState('');
   const [isWeatherLoading, setIsWeatherLoading] = useState(false);
+  const [isLocationLoading, setIsLocationLoading] = useState(false);
   const [selectedCloudInfo, setSelectedCloudInfo] = useState<CloudType | null>(null);
+
+  // Auto-fill EXIF Location via Reverse Geocoding
+  useEffect(() => {
+    if (metadata?.location && !location) {
+      const fetchAddress = async () => {
+        setIsLocationLoading(true);
+        try {
+          const { latitude, longitude } = metadata.location!;
+          const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1&accept-language=ko`);
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.address) {
+              const addr = data.address;
+              // Build Korean address (Province/City + District + Neighborhood)
+              const parts = [
+                addr.province || addr.city || addr.town,
+                addr.borough || addr.county || addr.district,
+                addr.suburb || addr.village || addr.neighbourhood
+              ].filter(Boolean);
+              
+              const addressStr = Array.from(new Set(parts)).join(' ');
+              if (addressStr) {
+                setLocation(addressStr);
+              } else if (data.display_name) {
+                setLocation(data.display_name.split(',').slice(0, 3).join(' '));
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('Reverse geocoding failed', error);
+        } finally {
+          setIsLocationLoading(false);
+        }
+      };
+
+      fetchAddress();
+    }
+  }, [metadata]);
 
   const handleGetWeather = () => {
     if (!navigator.geolocation) {
@@ -217,15 +264,28 @@ export function PredictionPage({ imageUrl, onSubmit }: PredictionPageProps) {
                     />
                   </div>
                 </div>
-                <div className="mb-4">
+                <div className="mb-4 relative">
                   <label className="block text-sm font-medium text-gray-700 mb-1">관측 위치</label>
-                  <input
-                    type="text"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    placeholder="예: 서울대학교 중앙도서관 부근"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      placeholder="예: 서울대학교 중앙도서관 부근"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      disabled={isLocationLoading}
+                    />
+                    {isLocationLoading && (
+                      <div className="absolute right-3 top-2.5">
+                        <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                  {metadata?.location && !isLocationLoading && location && (
+                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> 사진의 GPS 정보를 기반으로 자동 입력되었습니다.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">날씨</label>

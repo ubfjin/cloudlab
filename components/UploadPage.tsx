@@ -1,14 +1,59 @@
 import { useState, useRef } from 'react';
 import { Upload } from 'lucide-react';
+import ExifReader from 'exifreader';
 import { InfoBanner } from './InfoBanner';
+import { ImageMetadata } from '../types';
 
 interface UploadPageProps {
-  onImageUpload: (imageUrl: string) => void;
+  onImageUpload: (imageUrl: string, metadata?: ImageMetadata) => void;
 }
 
 export function UploadPage({ onImageUpload }: UploadPageProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+
+    // 1. Read EXIF metadata
+    let metadata: ImageMetadata = {};
+    try {
+      const tags = await ExifReader.load(file);
+      const dateTimeOriginal = tags['DateTimeOriginal']?.description;
+
+      if (dateTimeOriginal) {
+        // Format is usually "YYYY:MM:DD HH:MM:SS"
+        const [datePart, timePart] = dateTimeOriginal.split(' ');
+        if (datePart && timePart) {
+          metadata.date = datePart.replace(/:/g, '-'); // YYYY:MM:DD -> YYYY-MM-DD
+          metadata.time = timePart.substring(0, 5); // HH:MM:SS -> HH:MM
+        }
+      }
+
+      // Location extraction
+      const lat = tags['GPSLatitude']?.description;
+      const lon = tags['GPSLongitude']?.description;
+      
+      if (lat !== undefined && lon !== undefined) {
+        metadata.location = { 
+          latitude: typeof lat === 'number' ? lat : parseFloat(lat),
+          longitude: typeof lon === 'number' ? lon : parseFloat(lon)
+        };
+      }
+
+    } catch (error) {
+      console.warn('Error reading EXIF data:', error);
+    }
+
+    // 2. Read for preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (e.target?.result) {
+        onImageUpload(e.target.result as string, metadata);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -19,32 +64,20 @@ export function UploadPage({ onImageUpload }: UploadPageProps) {
     setIsDragging(false);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
 
     const file = e.dataTransfer.files[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          onImageUpload(e.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+    if (file) {
+      await processFile(file);
     }
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          onImageUpload(e.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
+      await processFile(file);
     }
   };
 

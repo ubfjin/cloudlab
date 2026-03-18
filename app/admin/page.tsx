@@ -10,12 +10,13 @@ import {
     Search,
     Filter
 } from 'lucide-react';
+import { HistoryPage } from '@/components/HistoryPage';
 
 interface UserProfile {
     id: string;
     email: string;
     class_name: string;
-    // We optionally might have observation counts or fetch them separately
+    totalScore?: number;
 }
 
 interface Observation {
@@ -45,6 +46,8 @@ export default function AdminPage() {
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
     const [userObservations, setUserObservations] = useState<Observation[]>([]);
     const [obsLoading, setObsLoading] = useState(false);
+    const [excludedObservationIds, setExcludedObservationIds] = useState<Set<number>>(new Set());
+    const [viewingDetails, setViewingDetails] = useState(false);
 
     useEffect(() => {
         if (!authLoading && !user?.isAdmin) {
@@ -84,6 +87,7 @@ export default function AdminPage() {
             if (res.ok) {
                 const data = await res.json();
                 setUserObservations(data.observations || []);
+                setExcludedObservationIds(new Set()); // Reset on user change
             }
         } catch (error) {
             console.error('Failed to fetch observations:', error);
@@ -96,11 +100,55 @@ export default function AdminPage() {
         selectedClass === 'all' || u.class_name === selectedClass
     );
 
+    const toggleObservationScore = (obsId: number) => {
+        setExcludedObservationIds(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(obsId)) {
+                newSet.delete(obsId);
+            } else {
+                newSet.add(obsId);
+            }
+            return newSet;
+        });
+    };
+
+    const calculateCurrentTotalScore = (user: UserProfile) => {
+        if (!user.totalScore) return 0;
+        
+        // Only calculate the deduction if this is the currently selected user
+        // and we have loaded their observations.
+        if (selectedUser?.id === user.id && userObservations.length > 0) {
+            let deduction = 0;
+            userObservations.forEach(obs => {
+                if (excludedObservationIds.has(obs.id)) {
+                    deduction += (obs.aiPrediction.score || 0);
+                }
+            });
+            return user.totalScore - deduction;
+        }
+        
+        // For users not currently selected, just return their base total score
+        return user.totalScore;
+    };
+
     if (authLoading || (loading && !users.length)) {
         return <div className="min-h-screen flex items-center justify-center">로딩 중...</div>;
     }
 
     if (!user?.isAdmin) return null;
+
+    if (viewingDetails && selectedUser) {
+        return (
+            <div className="fixed inset-0 z-50 overflow-y-auto bg-white">
+                <HistoryPage
+                    onBack={() => setViewingDetails(false)}
+                    accessToken={accessToken}
+                    targetUserId={selectedUser.id}
+                    targetUserEmail={selectedUser.email}
+                />
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 p-6">
@@ -169,6 +217,9 @@ export default function AdminPage() {
                                             }`}>
                                             {u.class_name || '미지정'}
                                         </span>
+                                        <span className="font-semibold text-blue-600">
+                                            총점: {calculateCurrentTotalScore(u)}점
+                                        </span>
                                     </div>
                                 </button>
                             ))}
@@ -184,10 +235,18 @@ export default function AdminPage() {
                             </div>
                         ) : (
                             <div>
-                                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                                    <span className="text-blue-600">{selectedUser.email}</span>
-                                    <span className="text-gray-400 font-normal text-base">님의 관찰 기록</span>
-                                </h3>
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                                        <span className="text-blue-600">{selectedUser.email}</span>
+                                        <span className="text-gray-400 font-normal text-base">님의 관찰 기록</span>
+                                    </h3>
+                                    <button
+                                        onClick={() => setViewingDetails(true)}
+                                        className="text-sm font-medium px-4 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-100"
+                                    >
+                                        학생 화면으로 자세히 보기
+                                    </button>
+                                </div>
 
                                 {obsLoading ? (
                                     <div className="text-center py-12 text-gray-500">기록 불러오는 중...</div>
@@ -197,23 +256,30 @@ export default function AdminPage() {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {userObservations.map((obs) => (
-                                            <div key={obs.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-md transition-shadow">
+                                        {userObservations.map((obs) => {
+                                            const isExcluded = excludedObservationIds.has(obs.id);
+                                            return (
+                                            <div key={obs.id} className={`bg-white border rounded-xl p-5 transition-shadow ${isExcluded ? 'border-gray-200 opacity-60' : 'border-blue-200 hover:shadow-md'}`}>
                                                 <div className="flex gap-4">
                                                     {/* Image */}
-                                                    <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden">
+                                                    <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden relative">
                                                         <img
                                                             src={obs.imageUrl}
                                                             alt="Cloud Observation"
-                                                            className="w-full h-full object-cover"
+                                                            className={`w-full h-full object-cover ${isExcluded ? 'grayscale' : ''}`}
                                                         />
+                                                        {isExcluded && (
+                                                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center">
+                                                                <span className="text-xs font-bold text-white bg-black/50 px-2 py-1 rounded">제외됨</span>
+                                                            </div>
+                                                        )}
                                                     </div>
 
                                                     {/* Content */}
                                                     <div className="flex-1">
                                                         <div className="flex items-center justify-between mb-2">
                                                             <div className="flex items-center gap-2">
-                                                                <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-sm font-semibold">
+                                                                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${isExcluded ? 'bg-gray-100 text-gray-500' : 'bg-blue-50 text-blue-700'}`}>
                                                                     AI: {obs.aiPrediction.cloudType}
                                                                 </span>
                                                                 <span className="text-sm text-gray-500">
@@ -245,13 +311,45 @@ export default function AdminPage() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="text-sm text-gray-600">
-                                                            정확도 점수: <span className="font-medium text-gray-900">{obs.aiPrediction.score}점</span>
+                                                        <div className="flex items-center justify-between mt-3">
+                                                            <div className={`text-sm ${isExcluded ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                                                                정확도 점수: <span className="font-medium truncate">{obs.aiPrediction.score}점</span>
+                                                            </div>
+                                                            
+                                                            <button
+                                                                onClick={() => toggleObservationScore(obs.id)}
+                                                                className={`px-3 py-1 text-xs font-medium rounded-full border transition-colors ${
+                                                                    isExcluded 
+                                                                    ? 'bg-gray-100 text-gray-600 border-gray-300 hover:bg-gray-200' 
+                                                                    : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                                                                }`}
+                                                            >
+                                                                {isExcluded ? '점수 반영하기' : '총점에서 제외'}
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
+                                        
+                                        {/* Total Score Footer */}
+                                        <div className="mt-8 pt-6 border-t border-gray-200">
+                                            <div className="bg-blue-50 border border-blue-100 rounded-xl p-6 flex items-center justify-between">
+                                                <div>
+                                                    <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                                        <LineChart className="w-5 h-5 text-blue-600" />
+                                                        최종 평가 점수
+                                                    </h4>
+                                                    <p className="text-sm text-gray-500 mt-1">
+                                                        제외된 기록을 뺀 순수 합산 점수입니다. (총 {userObservations.length}개 기록 중 {userObservations.length - excludedObservationIds.size}개 반영)
+                                                    </p>
+                                                </div>
+                                                <div className="text-3xl font-black text-blue-600">
+                                                    {calculateCurrentTotalScore(selectedUser)}<span className="text-lg font-medium text-gray-600 ml-1">점</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 )}
                             </div>

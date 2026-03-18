@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Cloud, Save, RefreshCw, BarChart3, AlertCircle, User, Sparkles, Brain, Info, BookOpen, HelpCircle } from 'lucide-react';
+import { CheckCircle, Cloud, Save, RefreshCw, AlertCircle, Sparkles, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
-import type { CloudType, UserPrediction } from '../types';
+import type { CloudType, UserPrediction, AIPrediction } from '../types';
 import type { AuthUser } from '../utils/auth';
 import { apiRequest } from '../utils/auth';
+import { ScoreCard } from './result/ScoreCard';
+import { PredictionComparison } from './result/PredictionComparison';
+import { ScientificReport } from './result/ScientificReport';
+import { CloudStateAnalysis } from './result/CloudStateAnalysis';
 
 interface ResultPageProps {
   imageUrl: string;
@@ -12,31 +16,6 @@ interface ResultPageProps {
   user: AuthUser | null;
   accessToken: string | null;
   onLoginClick: () => void;
-}
-
-interface AIPrediction {
-  cloudType: string;
-  cloudTypes?: { name: string; confidence: number }[];
-  primaryCloud?: string;
-  confidence: number;
-  confidenceReason?: string;
-  description: string;
-  detailedCritique?: string;
-  scientificReasoning?: string;
-  educationalContent?: {
-    formation: string;
-    atmosphere: string;
-    weather: string;
-  };
-  score?: number;
-  gradingFeedback?: string;
-  cloudState?: {
-    state: string;
-    transition?: string | null;
-    stateConfidence: number;
-    stateReason: string;
-  };
-  scientificFeedback?: string;
 }
 
 export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToken, onLoginClick }: ResultPageProps) {
@@ -78,7 +57,8 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
             imageData: imageUrl,
             userPrediction: {
               cloudType: userPrediction.cloudType,
-              reason: userPrediction.reason
+              reason: userPrediction.reason,
+              scientificReasoning: userPrediction.scientificReasoning
             }
           })
         }
@@ -110,7 +90,8 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
         score: data.score,
         gradingFeedback: data.gradingFeedback,
         cloudState: data.cloudState,
-        scientificFeedback: data.scientificFeedback
+        scientificFeedback: data.scientificFeedback,
+        scoreBreakdown: data.scoreBreakdown
       });
     } catch (error: any) {
       if (error.name === 'AbortError') {
@@ -184,6 +165,12 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
         weather: "소나기가 내릴 수 있음"
       },
       score: demoScore,
+      scoreBreakdown: {
+        participation: 1,
+        typeMatch: demoCloudType === userPrediction.cloudType ? 1 : 0,
+        visual: hasReason ? 2 : 0,
+        scientific: 0
+      },
       gradingFeedback: feedback
     });
 
@@ -205,6 +192,34 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
 
     setSaving(true);
     try {
+      // Calculate specific score breakdown for saving to DB
+      const isMatch = userPrediction.cloudType === aiPrediction.cloudType;
+      const scoreTotal = aiPrediction.score || 0;
+      
+      const scoreParticipation = 1;
+      const scoreTypeMatch = isMatch ? 1 : 0;
+      
+      // Infer visual/scientific from the total score based on the known grading rubric
+      // Logic from ResultPage visual display:
+      // 시각적 근거 +2 (if total >= 3)
+      // 과학적 추론 +1 (if total >= 5)
+      let scoreVisualReason = 0;
+      let scoreScientificReason = 0;
+      
+      if (scoreTotal >= 3) scoreVisualReason = 2;
+      if (scoreTotal >= 5) scoreScientificReason = 1;
+
+      // Handle edge cases where the math doesn't perfectly align with the inferred logic
+      // to ensure the breakdown always sums to the total score.
+      const currentSum = scoreParticipation + scoreTypeMatch + scoreVisualReason + scoreScientificReason;
+      if (currentSum !== scoreTotal) {
+         // Adjust visual reason first, then scientific if needed to make math work
+         const difference = scoreTotal - (scoreParticipation + scoreTypeMatch);
+         if (difference === 1) scoreVisualReason = 1;
+         else if (difference === 2) scoreVisualReason = 2;
+         else if (difference === 3) { scoreVisualReason = 2; scoreScientificReason = 1; }
+      }
+
       await apiRequest('/observations', {
         method: 'POST',
         token: accessToken,
@@ -216,18 +231,28 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
             date: userPrediction.date,
             time: userPrediction.time,
             location: userPrediction.location,
-            weather: userPrediction.weather
+            weather: userPrediction.weather,
+            scientificReasoning: userPrediction.scientificReasoning
           },
           aiPrediction: {
-            cloudType: aiPrediction.cloudType, // Saving primary cloud
+            cloudType: aiPrediction.cloudType,
             reason: aiPrediction.description,
             confidence: aiPrediction.confidence,
-            score: aiPrediction.score
+            detailedCritique: aiPrediction.detailedCritique,
+            scientificFeedback: aiPrediction.scientificFeedback,
+            score: scoreTotal,
+            scoreBreakdown: aiPrediction.scoreBreakdown || {
+                participation: scoreParticipation,
+                typeMatch: scoreTypeMatch,
+                visual: scoreVisualReason,
+                scientific: scoreScientificReason
+            }
           },
           isMatch
         })
       });
 
+      setSaving(false);
       setSaved(true);
       await loadStats();
 
@@ -241,7 +266,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
     }
   };
 
-  const isMatch = aiPrediction && userPrediction.cloudType === aiPrediction.cloudType;
+  const isMatch = !!(aiPrediction && userPrediction.cloudType === aiPrediction.cloudType);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -327,43 +352,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
             ) : aiPrediction ? (
               <>
                 {/* 1. Score Card (Top Priority) */}
-                {aiPrediction?.score !== undefined && (
-                  <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-1 rounded-2xl shadow-lg transform transition-transform hover:scale-[1.01]">
-                    <div className="bg-white rounded-xl p-6 text-center">
-                      <div className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">Observation Score</div>
-                      <div className="flex items-center justify-center gap-1 mb-2">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Sparkles
-                            key={star}
-                            className={`w-6 h-6 ${star <= aiPrediction.score! ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`}
-                          />
-                        ))}
-                      </div>
-                      <div className="text-5xl font-black text-gray-900 mb-2 tracking-tight">
-                        {aiPrediction.score}
-                        <span className="text-xl text-gray-400 font-normal"> / 5</span>
-                      </div>
-                      <p className="text-gray-600 font-medium text-lg mb-4">
-                        "{aiPrediction.gradingFeedback}"
-                      </p>
-
-                      <div className="flex flex-wrap justify-center gap-2 text-xs font-semibold">
-                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full border border-green-200">
-                          참여 +1
-                        </span>
-                        <span className={`px-3 py-1 rounded-full border ${isMatch ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
-                          종류 정답 {isMatch ? '+1' : '+0'}
-                        </span>
-                        <span className={`px-3 py-1 rounded-full border ${((aiPrediction.score || 0) >= 3) ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
-                          시각적 근거 +2
-                        </span>
-                        <span className={`px-3 py-1 rounded-full border ${((aiPrediction.score || 0) >= 5) ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-400 border-gray-200'}`}>
-                          과학적 추론 +1
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <ScoreCard prediction={aiPrediction} isMatch={isMatch} />
 
                 {/* 2. Main Result Card */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -419,131 +408,13 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
                 </div>
 
                 {/* 3. Prediction Comparison */}
-                <div className="border border-gray-200 rounded-2xl p-6 bg-white shadow-sm">
-                  <h3 className="mb-4 text-sm font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    관측 및 추론 비교
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* User Side */}
-                    <div className="space-y-4">
-                      <div className="bg-gray-50 p-5 rounded-2xl h-full">
-                        <div className="flex items-center gap-2 mb-3">
-                          <User className="w-5 h-5 text-gray-600" />
-                          <span className="font-bold text-gray-900">나의 생각</span>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <span className="text-xs font-semibold text-gray-400 uppercase">판단 근거</span>
-                            <p className="text-sm text-gray-700 mt-1">
-                              {userPrediction.reason || <span className="text-gray-400 italic">입력 없음</span>}
-                            </p>
-                          </div>
-                          {userPrediction.scientificReasoning && (
-                            <div className="pt-3 border-t border-gray-200">
-                              <span className="text-xs font-semibold text-blue-500 uppercase">과학적 추론</span>
-                              <p className="text-sm text-gray-700 mt-1">
-                                {userPrediction.scientificReasoning}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                <PredictionComparison userPrediction={userPrediction} aiPrediction={aiPrediction} />
 
-                    {/* AI Side */}
-                    <div className="space-y-4">
-                      <div className="bg-blue-50 p-5 rounded-2xl h-full border border-blue-100">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Sparkles className="w-5 h-5 text-blue-600" />
-                          <span className="font-bold text-blue-900">AI의 피드백</span>
-                        </div>
-                        <div className="space-y-4">
-                          <div>
-                            <span className="text-xs font-semibold text-blue-400 uppercase">시각적 분석 피드백</span>
-                            <p className="text-sm text-blue-800 mt-1">
-                              {aiPrediction.detailedCritique}
-                            </p>
-                          </div>
-                          {aiPrediction.scientificFeedback && (
-                            <div className="pt-3 border-t border-blue-200">
-                              <span className="text-xs font-semibold text-indigo-500 uppercase">과학적 추론 피드백</span>
-                              <p className="text-sm text-blue-800 mt-1">
-                                {aiPrediction.scientificFeedback}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 4. Scientific Context (Renamed from Encyclopedia) */}
-                {aiPrediction.educationalContent && (
-                  <div className="bg-white rounded-2xl p-6 shadow-sm border border-indigo-100">
-                    <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-indigo-900">
-                      <Brain className="w-6 h-6 text-indigo-600" />
-                      과학적 분석 리포트
-                    </h3>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      <div className="flex gap-4 items-start p-4 rounded-xl bg-gray-50 hover:bg-indigo-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 text-xl">
-                          🌥️
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-gray-900 mb-1">생성 원리</div>
-                          <p className="text-gray-600 leading-relaxed text-sm">{aiPrediction.educationalContent.formation}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-4 items-start p-4 rounded-xl bg-gray-50 hover:bg-indigo-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 text-xl">
-                          🌡️
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-gray-900 mb-1">대기 상태 분석</div>
-                          <p className="text-gray-600 leading-relaxed text-sm">{aiPrediction.educationalContent.atmosphere}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-4 items-start p-4 rounded-xl bg-gray-50 hover:bg-indigo-50/50 transition-colors">
-                        <div className="w-10 h-10 rounded-lg bg-white shadow-sm border border-gray-100 flex items-center justify-center flex-shrink-0 text-xl">
-                          ☔
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-gray-900 mb-1">예상 날씨</div>
-                          <p className="text-gray-600 leading-relaxed text-sm">{aiPrediction.educationalContent.weather}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* 4. Scientific Context */}
+                <ScientificReport prediction={aiPrediction} />
 
                 {/* 5. Cloud State Analysis (Optional) */}
-                {aiPrediction.cloudState && (
-                  <div className="bg-gradient-to-br from-indigo-900 to-purple-900 rounded-2xl p-6 text-white shadow-lg">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2 border-b border-indigo-700 pb-3">
-                      <BarChart3 className="w-5 h-5 text-indigo-300" />
-                      구름 상태 정밀 분석
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-                      <div>
-                        <div className="text-indigo-300 text-xs font-bold uppercase tracking-wider mb-2">Development Stage</div>
-                        <div className="text-3xl font-bold mb-2">{aiPrediction.cloudState.state}</div>
-                        <div className="text-indigo-200 text-sm">
-                          {aiPrediction.cloudState.transition ? `현재 ${aiPrediction.cloudState.transition} 과정에 있습니다.` : '전형적인 상태를 유지하고 있습니다.'}
-                        </div>
-                      </div>
-                      <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-                        <p className="text-sm leading-relaxed text-indigo-100">
-                          "{aiPrediction.cloudState.stateReason}"
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                <CloudStateAnalysis prediction={aiPrediction} />
 
                 {/* Floating Action Bar */}
                 <div className="sticky bottom-4 z-20">

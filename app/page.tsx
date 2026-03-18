@@ -13,15 +13,17 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { Tutorial } from '@/components/Tutorial';
 import { useAuth } from '@/hooks/useAuth';
 import { ClassSelectionModal } from '@/components/ClassSelectionModal';
-import { UserPrediction } from '@/types';
+import { UserPrediction, ImageMetadata } from '@/types';
 
 export default function Home() {
   const { user, accessToken, signOut, loading } = useAuth();
   const [currentStep, setCurrentStep] = useState<'main' | 'learning' | 'practice' | 'history' | 'upload' | 'prediction' | 'result'>('main');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedMetadata, setUploadedMetadata] = useState<ImageMetadata | undefined>(undefined);
   const [userPrediction, setUserPrediction] = useState<UserPrediction>({ cloudType: '', reason: '' });
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showClassModal, setShowClassModal] = useState(false);
 
   // Check if user has seen tutorial before
   useEffect(() => {
@@ -77,8 +79,9 @@ export default function Home() {
     setCurrentStep('prediction');
   };
 
-  const handleImageUpload = (imageUrl: string) => {
+  const handleImageUpload = (imageUrl: string, metadata?: ImageMetadata) => {
     setUploadedImage(imageUrl);
+    setUploadedMetadata(metadata);
     setCurrentStep('prediction');
   };
 
@@ -90,6 +93,7 @@ export default function Home() {
   const handleReset = () => {
     setCurrentStep('main');
     setUploadedImage(null);
+    setUploadedMetadata(undefined);
     setUserPrediction({ cloudType: '', reason: '' });
   };
 
@@ -112,6 +116,7 @@ export default function Home() {
         showLoginModal={showLoginModal}
         onCloseModal={() => setShowLoginModal(false)}
         onLogoClick={handleReset}
+        onChangeClass={() => setShowClassModal(true)}
       />
 
       {currentStep !== 'main' && currentStep !== 'learning' && currentStep !== 'practice' && currentStep !== 'history' && (
@@ -138,6 +143,7 @@ export default function Home() {
         {currentStep === 'prediction' && uploadedImage && (
           <PredictionPage
             imageUrl={uploadedImage}
+            metadata={uploadedMetadata}
             onSubmit={handlePredictionSubmit}
           />
         )}
@@ -160,11 +166,12 @@ export default function Home() {
         />
       )}
 
-      {!loading && user && !user.className && !user.isAdmin && (
+      {(!loading && user && !user.className && !user.isAdmin) || showClassModal ? (
         <ClassSelectionModal
           onSelect={() => window.location.reload()}
+          onClose={user?.className ? () => setShowClassModal(false) : undefined}
         />
-      )}
+      ) : null}
     </div>
   );
 }

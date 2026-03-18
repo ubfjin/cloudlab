@@ -53,11 +53,16 @@ export async function POST(req: NextRequest) {
                 is_match: isMatch,
                 scientific_reasoning_user: userPrediction.scientificReasoning,
                 scientific_feedback_ai: aiPrediction.scientificFeedback,
+                detailed_critique_ai: aiPrediction.detailedCritique,
                 cloud_state_ai: aiPrediction.cloudState,
                 observation_date: userPrediction.date,
                 observation_time: userPrediction.time,
                 location: userPrediction.location,
-                weather: userPrediction.weather
+                weather: userPrediction.weather,
+                score_participation: aiPrediction.scoreBreakdown?.participation || 1,
+                score_type_match: aiPrediction.scoreBreakdown?.typeMatch || 0,
+                score_visual_reason: aiPrediction.scoreBreakdown?.visual || 0,
+                score_scientific_reason: aiPrediction.scoreBreakdown?.scientific || 0
             })
             .select()
             .single();
@@ -143,8 +148,15 @@ export async function GET(req: NextRequest) {
                 reason: obs.reason_ai,
                 confidence: obs.confidence,
                 score: obs.score,
+                detailedCritique: obs.detailed_critique_ai,
                 scientificFeedback: obs.scientific_feedback_ai,
-                cloudState: obs.cloud_state_ai
+                cloudState: obs.cloud_state_ai,
+                scoreBreakdown: obs.score_participation !== undefined ? {
+                    participation: obs.score_participation,
+                    typeMatch: obs.score_type_match,
+                    visual: obs.score_visual_reason,
+                    scientific: obs.score_scientific_reason
+                } : undefined
             },
             scientificReasoning: obs.scientific_reasoning_user,
             userId: obs.user_id,

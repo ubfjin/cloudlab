@@ -9,9 +9,10 @@ interface HeaderProps {
   showLoginModal: boolean;
   onCloseModal: () => void;
   onLogoClick?: () => void;
+  onChangeClass?: () => void;
 }
 
-export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseModal, onLogoClick }: HeaderProps) {
+export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseModal, onLogoClick, onChangeClass }: HeaderProps) {
   return (
     <>
       <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-sm z-50">
@@ -39,7 +40,15 @@ export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseMo
                 <div className="flex flex-col text-right">
                   <span className="text-sm text-gray-600">{user.email}</span>
                   {user.className && (
-                    <span className="text-xs text-blue-600 font-medium">{user.className}</span>
+                    <div className="flex items-center justify-end gap-1 mt-0.5">
+                      <span className="text-xs text-blue-600 font-medium">{user.className}</span>
+                      <button 
+                        onClick={onChangeClass}
+                        className="text-[10px] bg-blue-50 text-blue-500 hover:bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200 transition-colors"
+                      >
+                        변경
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

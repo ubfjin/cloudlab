@@ -75,13 +75,28 @@ export async function GET(req: NextRequest) {
 
         if (profileError) {
             console.error('Error fetching profiles:', profileError);
-            // Verify if it's RLS error
             return NextResponse.json({ error: profileError.message }, { status: 500 });
         }
 
-        // Also fetch observation counts?
-        // Let's just return profiles for now.
-        return NextResponse.json({ users: profiles });
+        // Fetch all observation scores from the View (user_total_scores) 
+        // which calculates the SUM(score) directly in the database.
+        const { data: scores, error: scoreError } = await supabase
+            .from('user_total_scores')
+            .select('*');
+
+        const userScores: Record<string, number> = {};
+        if (scores) {
+            scores.forEach(row => {
+                userScores[row.user_id] = row.total_score || 0;
+            });
+        }
+
+        const usersWithScores = profiles?.map(p => ({
+            ...p,
+            totalScore: userScores[p.id] || 0
+        }));
+
+        return NextResponse.json({ users: usersWithScores });
 
     } catch (error: any) {
         console.error('Server error:', error);

@@ -14,6 +14,15 @@ export interface UserPrediction {
     scientificReasoning?: string;
 }
 
+export interface ImageMetadata {
+    date?: string; // YYYY-MM-DD
+    time?: string; // HH:mm
+    location?: {
+        latitude: number;
+        longitude: number;
+    };
+}
+
 export interface WeatherData {
     temperature: number;
     humidity: number;
@@ -21,4 +30,35 @@ export interface WeatherData {
     wind: string;
     pressure: string;
     precipitation: number;
+}
+
+export interface AIPrediction {
+  cloudType: string;
+  cloudTypes?: { name: string; confidence: number }[];
+  primaryCloud?: string;
+  confidence: number;
+  confidenceReason?: string;
+  description: string;
+  detailedCritique?: string;
+  scientificReasoning?: string;
+  educationalContent?: {
+    formation: string;
+    atmosphere: string;
+    weather: string;
+  };
+  score?: number;
+  gradingFeedback?: string;
+  cloudState?: {
+    state: string;
+    transition?: string | null;
+    stateConfidence: number;
+    stateReason: string;
+  };
+  scientificFeedback?: string;
+  scoreBreakdown?: {
+    participation: number;
+    typeMatch: number;
+    visual: number;
+    scientific: number;
+  };
 }

@@ -30,6 +30,8 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
   const [showConfidenceReason, setShowConfidenceReason] = useState(false);
 
   useEffect(() => {
+    const imageId = imageUrl.length > 100 ? `${imageUrl.substring(0, 50)}_${imageUrl.length}` : imageUrl;
+    
     // Check if we have a saved prediction from before login redirect
     const savedPredictionStr = sessionStorage.getItem('cloudlab_ai_prediction');
     let hasSavedPrediction = false;
@@ -37,7 +39,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
       try {
         const savedData = JSON.parse(savedPredictionStr);
         // Only restore if the image matches, otherwise it's a new prediction
-        if (savedData.imageUrl === imageUrl && savedData.prediction) {
+        if (savedData.imageId === imageId && savedData.prediction) {
           setAIPrediction(savedData.prediction);
           setAnalyzing(false);
           hasSavedPrediction = true;
@@ -55,10 +57,15 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
   // Save AI prediction to sessionStorage so it persists across login redirect
   useEffect(() => {
     if (aiPrediction) {
-      sessionStorage.setItem('cloudlab_ai_prediction', JSON.stringify({
-        imageUrl,
-        prediction: aiPrediction
-      }));
+      const imageId = imageUrl.length > 100 ? `${imageUrl.substring(0, 50)}_${imageUrl.length}` : imageUrl;
+      try {
+        sessionStorage.setItem('cloudlab_ai_prediction', JSON.stringify({
+          imageId,
+          prediction: aiPrediction
+        }));
+      } catch (e) {
+        console.warn('Failed to save AI prediction to storage:', e);
+      }
     }
   }, [aiPrediction, imageUrl]);
 

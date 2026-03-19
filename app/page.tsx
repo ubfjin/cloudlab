@@ -63,7 +63,11 @@ export default function Home() {
         uploadedMetadata,
         userPrediction
       };
-      sessionStorage.setItem('cloudlab_flow_state', JSON.stringify(state));
+      try {
+        sessionStorage.setItem('cloudlab_flow_state', JSON.stringify(state));
+      } catch (e) {
+        console.warn('Could not save flow state (might be too large for sessionStorage)', e);
+      }
     } else {
       sessionStorage.removeItem('cloudlab_flow_state');
       sessionStorage.removeItem('cloudlab_ai_prediction');

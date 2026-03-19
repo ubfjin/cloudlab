@@ -289,7 +289,7 @@ export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageP
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">날씨</label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       value={weather}

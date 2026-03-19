@@ -24,13 +24,13 @@ export function PredictionComparison({ userPrediction, aiPrediction }: Predictio
             <div className="space-y-4">
               <div>
                 <span className="text-xs font-semibold text-gray-400 uppercase">판단 근거</span>
-                <p className="text-sm text-gray-700 mt-1">
+                <p className="text-sm text-gray-700 mt-1 break-words break-all sm:break-normal">
                   {userPrediction.reason || <span className="text-gray-400 italic">입력 없음</span>}
                 </p>
               </div>
               <div className="pt-3 border-t border-gray-200">
                 <span className="text-xs font-semibold text-blue-500 uppercase">과학적 추론</span>
-                <p className="text-sm text-gray-700 mt-1">
+                <p className="text-sm text-gray-700 mt-1 break-words break-all sm:break-normal">
                   {userPrediction.scientificReasoning || <span className="text-gray-400 italic">작성하지 않음</span>}
                 </p>
               </div>
@@ -48,14 +48,14 @@ export function PredictionComparison({ userPrediction, aiPrediction }: Predictio
             <div className="space-y-4">
               <div>
                 <span className="text-xs font-semibold text-blue-400 uppercase">시각적 분석 피드백</span>
-                <p className="text-sm text-blue-800 mt-1">
+                <p className="text-sm text-blue-800 mt-1 break-words break-all sm:break-normal">
                   {aiPrediction.detailedCritique}
                 </p>
               </div>
               {aiPrediction.scientificFeedback && (
                 <div className="pt-3 border-t border-blue-200">
                   <span className="text-xs font-semibold text-indigo-500 uppercase">과학적 추론 피드백</span>
-                  <p className="text-sm text-blue-800 mt-1">
+                  <p className="text-sm text-blue-800 mt-1 break-words break-all sm:break-normal">
                     {aiPrediction.scientificFeedback}
                   </p>
                 </div>

@@ -36,8 +36,8 @@ export function Header({ user, onLoginClick, onLogout, showLoginModal, onCloseMo
                 </a>
               )}
               <div className="flex items-center gap-2">
-                <User className="w-5 h-5 text-gray-600" />
-                <div className="flex flex-col text-right">
+                <User className="w-5 h-5 text-gray-600 hidden sm:block" />
+                <div className="hidden sm:flex flex-col text-right">
                   <span className="text-sm text-gray-600">{user.email}</span>
                   {user.className && (
                     <div className="flex items-center justify-end gap-1 mt-0.5">

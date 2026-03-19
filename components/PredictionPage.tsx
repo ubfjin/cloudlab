@@ -353,7 +353,7 @@ export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageP
 
                 <div>
                   <label className="block text-lg font-semibold text-gray-900 mb-2">
-                    과학적 추론 (선택사항)
+                    구름 판단 이유를 기반으로 이 지역 대기의 상태를 추론해보세요 (선택사항)
                   </label>
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl mb-3 border border-blue-100">
                     <p className="mb-2 font-semibold text-blue-900 flex items-center gap-2">

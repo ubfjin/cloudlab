@@ -30,9 +30,37 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
   const [showConfidenceReason, setShowConfidenceReason] = useState(false);
 
   useEffect(() => {
-    // Call real AI analysis
-    analyzeCloud();
-  }, []);
+    // Check if we have a saved prediction from before login redirect
+    const savedPredictionStr = sessionStorage.getItem('cloudlab_ai_prediction');
+    let hasSavedPrediction = false;
+    if (savedPredictionStr) {
+      try {
+        const savedData = JSON.parse(savedPredictionStr);
+        // Only restore if the image matches, otherwise it's a new prediction
+        if (savedData.imageUrl === imageUrl && savedData.prediction) {
+          setAIPrediction(savedData.prediction);
+          setAnalyzing(false);
+          hasSavedPrediction = true;
+        }
+      } catch (e) {
+        console.error('Failed to parse saved AI prediction', e);
+      }
+    }
+
+    if (!hasSavedPrediction) {
+      analyzeCloud();
+    }
+  }, [imageUrl]);
+
+  // Save AI prediction to sessionStorage so it persists across login redirect
+  useEffect(() => {
+    if (aiPrediction) {
+      sessionStorage.setItem('cloudlab_ai_prediction', JSON.stringify({
+        imageUrl,
+        prediction: aiPrediction
+      }));
+    }
+  }, [aiPrediction, imageUrl]);
 
   useEffect(() => {
     // Load user stats if logged in
@@ -266,6 +294,18 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
     }
   };
 
+  // Handle auto-save after login redirect
+  useEffect(() => {
+    if (user && accessToken && aiPrediction && !saving && !saved) {
+      const autoSave = sessionStorage.getItem('cloudlab_auto_save_after_login');
+      if (autoSave === 'true') {
+        sessionStorage.removeItem('cloudlab_auto_save_after_login');
+        handleSaveObservation();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, accessToken, aiPrediction, saving, saved]);
+
   const isMatch = !!(aiPrediction && userPrediction.cloudType === aiPrediction.cloudType);
 
   return (
@@ -453,7 +493,10 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
                     ) : (
                       <div className="flex-1 flex gap-2 animate-in fade-in slide-in-from-bottom-2">
                         <button
-                          onClick={onLoginClick}
+                          onClick={() => {
+                            sessionStorage.setItem('cloudlab_auto_save_after_login', 'true');
+                            onLoginClick();
+                          }}
                           className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-sm"
                         >
                           로그인 후 저장

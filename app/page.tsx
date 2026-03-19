@@ -33,6 +33,44 @@ export default function Home() {
     }
   }, []);
 
+  // Restore flow state after login redirect
+  useEffect(() => {
+    const savedStateStr = sessionStorage.getItem('cloudlab_flow_state');
+    if (savedStateStr) {
+      try {
+        const savedState = JSON.parse(savedStateStr);
+        if (savedState.currentStep && savedState.uploadedImage) {
+          setCurrentStep(savedState.currentStep);
+          setUploadedImage(savedState.uploadedImage);
+          if (savedState.uploadedMetadata) setUploadedMetadata(savedState.uploadedMetadata);
+          if (savedState.userPrediction) setUserPrediction(savedState.userPrediction);
+        }
+      } catch (e) {
+        console.error('Failed to parse saved flow state', e);
+      }
+      
+      // Clean up the storage so it doesn't persist forever
+      sessionStorage.removeItem('cloudlab_flow_state');
+    }
+  }, []);
+
+  // Save flow state when it changes (only when in prediction flow)
+  useEffect(() => {
+    if (currentStep === 'upload' || currentStep === 'prediction' || currentStep === 'result') {
+      const state = {
+        currentStep,
+        uploadedImage,
+        uploadedMetadata,
+        userPrediction
+      };
+      sessionStorage.setItem('cloudlab_flow_state', JSON.stringify(state));
+    } else {
+      sessionStorage.removeItem('cloudlab_flow_state');
+      sessionStorage.removeItem('cloudlab_ai_prediction');
+      sessionStorage.removeItem('cloudlab_auto_save_after_login');
+    }
+  }, [currentStep, uploadedImage, uploadedMetadata, userPrediction]);
+
   const handleCloseTutorial = () => {
     setShowTutorial(false);
     localStorage.setItem('cloudlab_tutorial_seen', 'true');

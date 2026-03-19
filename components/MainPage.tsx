@@ -23,7 +23,7 @@ export function MainPage({ onStart, onLearnClick, onPracticeClick, onTutorialCli
       <div className="max-w-2xl w-full text-center">
         <div className="mb-8">
           <Cloud className="w-24 h-24 mx-auto mb-6 text-blue-500" />
-          <h1 className="text-8xl mb-4">CloudLab</h1>
+          <h1 className="text-5xl sm:text-6xl md:text-8xl mb-4 font-bold tracking-tight text-gray-900">CloudLab</h1>
           <p className="text-xl text-gray-600 mb-2">구름 사진을 업로드하고 구름 종류를 판단해보세요</p>
           <p className="text-lg text-gray-500">AI와 함께하는 구름 관측 체험</p>
         </div>

@@ -12,6 +12,41 @@ export function UploadPage({ onImageUpload }: UploadPageProps) {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const compressImage = (file: File, maxWidth: number = 1000): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas context not available'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.onerror = reject;
+      img.src = objectUrl;
+    });
+  };
+
   const processFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return;
 
@@ -45,14 +80,20 @@ export function UploadPage({ onImageUpload }: UploadPageProps) {
       console.warn('Error reading EXIF data:', error);
     }
 
-    // 2. Read for preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        onImageUpload(e.target.result as string, metadata);
-      }
-    };
-    reader.readAsDataURL(file);
+    // 2. Read and compress for preview & AI
+    try {
+      const compressedDataUrl = await compressImage(file);
+      onImageUpload(compressedDataUrl, metadata);
+    } catch (err) {
+      console.warn('Image compression failed, falling back to original:', err);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          onImageUpload(e.target.result as string, metadata);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {

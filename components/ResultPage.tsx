@@ -28,6 +28,8 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [demoMode, setDemoMode] = useState(false);
   const [showConfidenceReason, setShowConfidenceReason] = useState(false);
+  const [savedObservationId, setSavedObservationId] = useState<number | null>(null);
+  const [objectionStatus, setObjectionStatus] = useState<'idle' | 'loading' | 'submitted'>('idle');
 
   useEffect(() => {
     const imageId = imageUrl.length > 100 ? `${imageUrl.substring(0, 50)}_${imageUrl.length}` : imageUrl;
@@ -255,7 +257,7 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
          else if (difference === 3) { scoreVisualReason = 2; scoreScientificReason = 1; }
       }
 
-      await apiRequest('/observations', {
+      const data = await apiRequest('/observations', {
         method: 'POST',
         token: accessToken,
         body: JSON.stringify({
@@ -287,6 +289,10 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
         })
       });
 
+      if (data && data.observation && data.observation.id) {
+          setSavedObservationId(data.observation.id);
+      }
+
       setSaving(false);
       setSaved(true);
       await loadStats();
@@ -298,6 +304,24 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
       console.error('Error saving observation:', error);
       toast.error(`기록 저장 실패: ${error.message || '알 수 없는 오류'}`);
       setSaving(false);
+    }
+  };
+
+  const handleObjection = async () => {
+    if (!savedObservationId || !accessToken) return;
+    setObjectionStatus('loading');
+    try {
+      await apiRequest('/observations/objection', {
+        method: 'POST',
+        token: accessToken,
+        body: JSON.stringify({ observationId: savedObservationId })
+      });
+      setObjectionStatus('submitted');
+      toast.success('이의제기가 접수되었습니다.');
+    } catch (error: any) {
+      console.error('Error submitting objection:', error);
+      toast.error(`이의제기 실패: ${error.message}`);
+      setObjectionStatus('idle');
     }
   };
 
@@ -490,6 +514,21 @@ export function ResultPage({ imageUrl, userPrediction, onReset, user, accessToke
                             </>
                           )}
                         </button>
+                        {saved && savedObservationId && (
+                           <button
+                             onClick={handleObjection}
+                             disabled={objectionStatus !== 'idle'}
+                             title="AI 점수가 부당하다고 생각될 경우 눌러주세요."
+                             className={`px-4 py-3 rounded-xl transition-colors flex items-center justify-center gap-2 font-medium text-sm border ${
+                               objectionStatus === 'submitted'
+                                 ? 'bg-red-50 text-red-600 border-red-200'
+                                 : 'bg-white text-red-500 border-red-200 hover:bg-red-50'
+                             }`}
+                           >
+                             <AlertCircle className="w-4 h-4" />
+                             {objectionStatus === 'loading' ? '접수 중...' : objectionStatus === 'submitted' ? '이의제기 완료' : '이의제기'}
+                           </button>
+                        )}
                         <button
                           onClick={onReset}
                           className="px-4 py-3 bg-white text-gray-700 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors flex items-center justify-center"

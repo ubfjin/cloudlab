@@ -250,8 +250,8 @@ export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageP
                     <input
                       type="date"
                       value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -259,8 +259,8 @@ export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageP
                     <input
                       type="time"
                       value={time}
-                      onChange={(e) => setTime(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -270,10 +270,9 @@ export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageP
                     <input
                       type="text"
                       value={location}
-                      onChange={(e) => setLocation(e.target.value)}
-                      placeholder="예: 서울대학교 중앙도서관 부근"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      disabled={isLocationLoading}
+                      placeholder={isLocationLoading ? "위치 정보를 불러오는 중..." : "단말기/사진 GPS 정보 기반 자동 입력"}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none bg-gray-50 text-gray-500 cursor-not-allowed"
+                      readOnly
                     />
                     {isLocationLoading && (
                       <div className="absolute right-3 top-2.5">

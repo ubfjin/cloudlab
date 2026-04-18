@@ -91,9 +91,17 @@ export async function GET(req: NextRequest) {
             });
         }
 
+        const { data: objectionsList } = await supabase
+            .from('observations')
+            .select('user_id')
+            .like('reason_user', '%[OBJECTION_RAISED]%');
+        
+        const usersWithObjections = new Set((objectionsList || []).map((o: any) => o.user_id));
+
         const usersWithScores = profiles?.map(p => ({
             ...p,
-            totalScore: userScores[p.id] || 0
+            totalScore: userScores[p.id] || 0,
+            hasObjections: usersWithObjections.has(p.id)
         }));
 
         return NextResponse.json({ users: usersWithScores });

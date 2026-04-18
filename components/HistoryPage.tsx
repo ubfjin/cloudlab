@@ -32,6 +32,7 @@ interface Observation {
   scientificReasoning?: string; // Sometimes flattened by the API router
   userId: string;
   createdAt: string;
+  hasObjection?: boolean;
 }
 
 interface HistoryPageProps {
@@ -191,6 +192,15 @@ export function HistoryPage({ onBack, accessToken, targetUserId, targetUserEmail
                         <span className="font-semibold text-gray-700">⏰ 시간:</span> <br />{obs.userPrediction.time || '-'}
                       </div>
                     </div>
+                    
+                    {/* Objection Indicator */}
+                    {obs.hasObjection && (
+                      <div className="mt-3 bg-red-50/80 rounded-lg p-2.5 text-xs text-red-900 border border-red-200">
+                        <div className="font-bold flex items-center gap-1.5 text-red-700">
+                          <span>🚨</span> 이의제기가 접수된 기록
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Small Score Breakdown */}
                     {obs.aiPrediction.score !== undefined && (

@@ -132,36 +132,42 @@ export async function GET(req: NextRequest) {
         }
 
         // Map DB snake_case columns to camelCase expected by frontend
-        const observations = data.map(obs => ({
-            id: obs.id, // Include ID for React keys
-            imageUrl: obs.image_url,
-            userPrediction: {
-                cloudType: obs.cloud_type_user,
-                reason: obs.reason_user,
-                date: obs.observation_date,
-                time: obs.observation_time,
-                location: obs.location,
-                weather: obs.weather
-            },
-            aiPrediction: {
-                cloudType: obs.cloud_type_ai,
-                reason: obs.reason_ai,
-                confidence: obs.confidence,
-                score: obs.score,
-                detailedCritique: obs.detailed_critique_ai,
-                scientificFeedback: obs.scientific_feedback_ai,
-                cloudState: obs.cloud_state_ai,
-                scoreBreakdown: obs.score_participation !== undefined ? {
-                    participation: obs.score_participation,
-                    typeMatch: obs.score_type_match,
-                    visual: obs.score_visual_reason,
-                    scientific: obs.score_scientific_reason
-                } : undefined
-            },
-            scientificReasoning: obs.scientific_reasoning_user,
-            userId: obs.user_id,
-            createdAt: obs.created_at
-        }));
+        const observations = data.map(obs => {
+            const hasObjection = obs.reason_user?.includes('[OBJECTION_RAISED]') || false;
+            const cleanReason = obs.reason_user?.replace('[OBJECTION_RAISED]', '').trim();
+
+            return {
+                id: obs.id, // Include ID for React keys
+                imageUrl: obs.image_url,
+                hasObjection,
+                userPrediction: {
+                    cloudType: obs.cloud_type_user,
+                    reason: cleanReason,
+                    date: obs.observation_date,
+                    time: obs.observation_time,
+                    location: obs.location,
+                    weather: obs.weather
+                },
+                aiPrediction: {
+                    cloudType: obs.cloud_type_ai,
+                    reason: obs.reason_ai,
+                    confidence: obs.confidence,
+                    score: obs.score,
+                    detailedCritique: obs.detailed_critique_ai,
+                    scientificFeedback: obs.scientific_feedback_ai,
+                    cloudState: obs.cloud_state_ai,
+                    scoreBreakdown: obs.score_participation !== undefined ? {
+                        participation: obs.score_participation,
+                        typeMatch: obs.score_type_match,
+                        visual: obs.score_visual_reason,
+                        scientific: obs.score_scientific_reason
+                    } : undefined
+                },
+                scientificReasoning: obs.scientific_reasoning_user,
+                userId: obs.user_id,
+                createdAt: obs.created_at
+            };
+        });
 
         return NextResponse.json({ observations });
 

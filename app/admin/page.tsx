@@ -17,6 +17,7 @@ interface UserProfile {
     email: string;
     class_name: string;
     totalScore?: number;
+    hasObjections?: boolean;
 }
 
 interface Observation {
@@ -35,6 +36,7 @@ interface Observation {
         score: number;
     };
     createdAt: string;
+    hasObjection?: boolean;
 }
 
 export default function AdminPage() {
@@ -48,6 +50,12 @@ export default function AdminPage() {
     const [obsLoading, setObsLoading] = useState(false);
     const [excludedObservationIds, setExcludedObservationIds] = useState<Set<number>>(new Set());
     const [viewingDetails, setViewingDetails] = useState(false);
+    
+    const [editingScoreId, setEditingScoreId] = useState<number | null>(null);
+    const [newScore, setNewScore] = useState<number>(0);
+
+    // To properly type Observation, add hasObjection to it
+    // Note: TypeScript interface should be updated at the top of file but we'll cast or it might work if hasObjection is optional
 
     useEffect(() => {
         if (!authLoading && !user?.isAdmin) {
@@ -110,6 +118,35 @@ export default function AdminPage() {
             }
             return newSet;
         });
+    };
+
+    const handleUpdateScore = async (obsId: number) => {
+        try {
+            const res = await fetch(`/api/observations/${obsId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`
+                },
+                body: JSON.stringify({ score: newScore, removeObjection: true })
+            });
+            if (res.ok) {
+                // update local state
+                setUserObservations(prev => prev.map(obs => {
+                    if (obs.id === obsId) {
+                        return {
+                            ...obs,
+                            hasObjection: false,
+                            aiPrediction: { ...obs.aiPrediction, score: newScore }
+                        };
+                    }
+                    return obs;
+                }));
+                setEditingScoreId(null);
+            }
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     const calculateCurrentTotalScore = (user: UserProfile) => {
@@ -211,7 +248,14 @@ export default function AdminPage() {
                                         : 'hover:bg-gray-50 border border-transparent'
                                         }`}
                                 >
-                                    <div className="font-medium text-gray-900 truncate">{u.email}</div>
+                                    <div className="font-medium text-gray-900 truncate flex items-center justify-between">
+                                        <span>{u.email}</span>
+                                        {u.hasObjections && (
+                                            <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full flex items-center font-bold" title="이의제기 대기 중">
+                                                🚨 이의제기
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="text-xs text-gray-500 mt-1 flex items-center justify-between">
                                         <span className={`px-2 py-0.5 rounded-full ${u.class_name === '26년도 1학기' ? 'bg-indigo-50 text-indigo-700' : 'bg-gray-100 text-gray-600'
                                             }`}>
@@ -258,8 +302,13 @@ export default function AdminPage() {
                                     <div className="space-y-4">
                                         {userObservations.map((obs) => {
                                             const isExcluded = excludedObservationIds.has(obs.id);
+                                            const isObjected = obs.hasObjection && !isExcluded;
                                             return (
-                                            <div key={obs.id} className={`bg-white border rounded-xl p-5 transition-shadow ${isExcluded ? 'border-gray-200 opacity-60' : 'border-blue-200 hover:shadow-md'}`}>
+                                            <div key={obs.id} className={`bg-white border-2 rounded-xl p-5 transition-all ${
+                                                isExcluded ? 'border-gray-200 opacity-60' : 
+                                                isObjected ? 'border-red-300 bg-red-50/30 shadow-md ring-4 ring-red-50' : 
+                                                'border-blue-100 hover:border-blue-300 hover:shadow-md'
+                                            }`}>
                                                 <div className="flex gap-4">
                                                     {/* Image */}
                                                     <div className="w-24 h-24 flex-shrink-0 bg-gray-100 rounded-lg overflow-hidden relative">
@@ -286,9 +335,16 @@ export default function AdminPage() {
                                                                     (User: {obs.userPrediction.cloudType})
                                                                 </span>
                                                             </div>
-                                                            <span className="text-sm text-gray-400">
-                                                                {new Date(obs.createdAt).toLocaleDateString()}
-                                                            </span>
+                                                            <div className="flex items-center gap-2">
+                                                                {obs.hasObjection && (
+                                                                    <span className="bg-red-100 text-red-700 px-3 py-1 rounded-md text-xs font-bold shadow-sm border border-red-200 flex items-center gap-1">
+                                                                        🚨 이의제기 접수됨
+                                                                    </span>
+                                                                )}
+                                                                <span className="text-sm text-gray-400">
+                                                                    {new Date(obs.createdAt).toLocaleDateString()}
+                                                                </span>
+                                                            </div>
                                                         </div>
 
                                                         <p className="text-gray-700 text-sm mb-2 line-clamp-2">
@@ -311,9 +367,37 @@ export default function AdminPage() {
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center justify-between mt-3">
-                                                            <div className={`text-sm ${isExcluded ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
-                                                                정확도 점수: <span className="font-medium truncate">{obs.aiPrediction.score}점</span>
+                                                        <div className="flex items-center justify-between mt-3 bg-gray-50/50 p-2 rounded-lg">
+                                                            <div className={`text-sm flex items-center gap-2 ${isExcluded ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
+                                                                정확도 점수: 
+                                                                {editingScoreId === obs.id ? (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <select
+                                                                            value={newScore}
+                                                                            onChange={(e) => setNewScore(Number(e.target.value))}
+                                                                            className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+                                                                        >
+                                                                            {[0, 1, 2, 3, 4, 5].map(s => (
+                                                                                <option key={s} value={s}>{s}점</option>
+                                                                            ))}
+                                                                        </select>
+                                                                        <button onClick={() => handleUpdateScore(obs.id)} className="bg-blue-500 text-white px-2 py-1 flex items-center justify-center rounded text-xs hover:bg-blue-600">저장</button>
+                                                                        <button onClick={() => setEditingScoreId(null)} className="bg-gray-200 text-gray-700 px-2 py-1 rounded text-xs hover:bg-gray-300">취소</button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <span className="font-bold text-gray-900">{obs.aiPrediction.score}점</span>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setEditingScoreId(obs.id);
+                                                                                setNewScore(obs.aiPrediction.score);
+                                                                            }}
+                                                                            className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                                                        >
+                                                                            점수 수정
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             
                                                             <button

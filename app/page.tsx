@@ -187,6 +187,7 @@ export default function Home() {
             imageUrl={uploadedImage}
             metadata={uploadedMetadata}
             onSubmit={handlePredictionSubmit}
+            user={user}
           />
         )}
         {currentStep === 'result' && uploadedImage && (

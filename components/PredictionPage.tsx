@@ -6,6 +6,7 @@ interface PredictionPageProps {
   imageUrl: string;
   metadata?: ImageMetadata;
   onSubmit: (prediction: UserPrediction) => void;
+  user?: any;
 }
 
 const cloudTypes: CloudType[] = [
@@ -85,16 +86,18 @@ const cloudInfoMap: Record<CloudType, CloudInfo> = {
   }
 };
 
-export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageProps) {
+export function PredictionPage({ imageUrl, metadata, onSubmit, user }: PredictionPageProps) {
   const [cloudType, setCloudType] = useState('');
   const [reason, setReason] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [time, setTime] = useState(new Date().toTimeString().slice(0, 5));
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
 
   // Auto-fill metadata if available
   useEffect(() => {
     if (metadata?.date) setDate(metadata.date);
+    else setDate('');
     if (metadata?.time) setTime(metadata.time);
+    else setTime('');
   }, [metadata]);
   const [location, setLocation] = useState('');
   const [weather, setWeather] = useState('');
@@ -212,7 +215,18 @@ export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageP
     }
   };
 
-  const isValid = cloudType !== '' && reason.trim().length > 0;
+  const getDateErrorMessage = () => {
+    if (!date) return "사진에 날짜 메타데이터가 없어 제출할 수 없습니다.";
+    if (user?.className === '26년도 1학기') {
+      if (date < '2026-03-01' || date > '2026-05-28') {
+        return "26년도 1학기 관측 기간(2026.03.01 - 2026.05.28) 내의 사진만 제출 가능합니다.";
+      }
+    }
+    return null;
+  };
+
+  const dateError = getDateErrorMessage();
+  const isValid = cloudType !== '' && reason.trim().length > 0 && !dateError;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -376,6 +390,12 @@ export function PredictionPage({ imageUrl, metadata, onSubmit }: PredictionPageP
               </div>
 
               <div className="mt-8">
+                {dateError && (
+                  <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium flex items-center gap-2 border border-red-100">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                    {dateError}
+                  </div>
+                )}
                 <button
                   type="submit"
                   disabled={!isValid}
